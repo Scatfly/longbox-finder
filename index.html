@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15171c">
+<meta name="description" content="Look up Marvel series and characters and find the best places to buy each comic.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Longbox">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; -webkit-text-size-adjust: 100%; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<title>Longbox Finder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: search masthead on top, results grid left, sticky "pull list" (selected comics + where to buy) right; stacks on phones. Four-colour process print theme. */
+:root {
+  --paper: #f6f7f9;
+  --card: #ffffff;
+  --ink: #15171c;
+  --muted: #5d6270;
+  --line: #d9dce3;
+  --cyan: #0094c6;
+  --magenta: #d6246e;
+  --yellow: #ffd23f;
+  --accent: #d6246e;
+  --accent-ink: #ffffff;
+  --chip: #eef0f4;
+  --shadow: 3px 3px 0 var(--ink);
+  --display: "Bangers", "Impact", "Arial Black", sans-serif;
+  --body: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12141a; --card: #1b1e26; --ink: #eef0f5; --muted: #a2a8b6; --line: #2e333e;
+    --cyan: #3cc2ef; --magenta: #ff5c9a; --yellow: #ffd84f; --accent: #ff5c9a; --accent-ink: #12141a;
+    --chip: #252a34; --shadow: 3px 3px 0 #000; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12141a; --card: #1b1e26; --ink: #eef0f5; --muted: #a2a8b6; --line: #2e333e;
+  --cyan: #3cc2ef; --magenta: #ff5c9a; --yellow: #ffd84f; --accent: #ff5c9a; --accent-ink: #12141a;
+  --chip: #252a34; --shadow: 3px 3px 0 #000; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; }
+a { color: inherit; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+
+/* Masthead */
+.mast { padding-block: 28px 18px; display: grid; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.logo {
+  font-family: var(--display); font-size: clamp(40px, 7vw, 64px); letter-spacing: 1.5px; line-height: .9;
+  margin: 0; color: var(--ink);
+  text-shadow: 3px 3px 0 var(--cyan), 6px 6px 0 var(--magenta);
+}
+.reg { display: flex; gap: 4px; align-items: center; }
+.reg span { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink); }
+.reg span:nth-child(1) { background: var(--cyan); }
+.reg span:nth-child(2) { background: var(--magenta); }
+.reg span:nth-child(3) { background: var(--yellow); }
+.reg span:nth-child(4) { background: var(--ink); }
+.tag { color: var(--muted); max-width: 62ch; margin: 0; }
+
+.search {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 0; background: var(--card);
+  border: 2px solid var(--ink); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden;
+}
+.modes { display: flex; border-right: 2px solid var(--ink); }
+.modes button {
+  border: 0; background: transparent; padding: 0 14px; font-weight: 700; font-size: 13px; letter-spacing: .06em;
+  text-transform: uppercase; cursor: pointer; color: var(--muted);
+}
+.modes button[aria-pressed="true"] { background: var(--yellow); color: #15171c; }
+#q { border: 0; background: transparent; padding: 14px 14px; font-size: 17px; min-width: 0; outline: none; }
+#q::placeholder { color: var(--muted); }
+.go {
+  border: 0; border-left: 2px solid var(--ink); background: var(--accent); color: var(--accent-ink);
+  font-weight: 800; padding: 0 22px; cursor: pointer; letter-spacing: .03em;
+}
+.go:hover { filter: brightness(1.06); }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.quick small { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+.pill {
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 999px; padding: 4px 12px; cursor: pointer;
+  font-size: 13px; font-weight: 600;
+}
+.pill:hover { border-color: var(--ink); }
+
+/* Main grid */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }
+@media (max-width: 920px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.status { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; margin-bottom: 14px; }
+.status h2 { font-family: var(--display); font-size: 32px; letter-spacing: 1px; font-weight: 400; margin: 0; line-height: 1; text-wrap: balance; }
+.status .meta { color: var(--muted); font-size: 13px; }
+.summary { margin: 0 0 16px; color: var(--muted); max-width: 70ch; }
+.source {
+  display: inline-block; font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 4px;
+  background: var(--chip); color: var(--muted); vertical-align: middle; margin-left: 6px;
+}
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.btn {
+  border: 2px solid var(--ink); background: var(--card); border-radius: 8px; padding: 6px 12px; font-weight: 700;
+  font-size: 13px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { background: var(--chip); }
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.primary:hover { filter: brightness(1.15); background: var(--ink); }
+.btn[disabled] { opacity: .5; cursor: default; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+.comic {
+  background: var(--card); border: 2px solid var(--line); border-radius: 10px; overflow: hidden; display: flex;
+  flex-direction: column; cursor: pointer; transition: transform .12s, border-color .12s; position: relative; text-align: left;
+  padding: 0;
+}
+.comic:hover { border-color: var(--ink); transform: translateY(-2px); }
+.comic[aria-pressed="true"] { border-color: var(--ink); box-shadow: var(--shadow); }
+.cover {
+  aspect-ratio: 2 / 1.25; position: relative; overflow: hidden; display: flex; align-items: flex-end; padding: 10px 12px;
+  color: #fff; max-width: 100%;
+}
+.cover::before {
+  content: ""; position: absolute; inset: 0; opacity: .28;
+  background-image: radial-gradient(circle, #000 1.2px, transparent 1.6px); background-size: 7px 7px;
+}
+.cover .num { position: relative; font-family: var(--display); font-size: 46px; line-height: .85; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
+.cover .yr {
+  position: absolute; top: 8px; left: 10px; font-family: var(--mono); font-size: 11px; font-weight: 600;
+  background: rgba(0,0,0,.55); padding: 1px 6px; border-radius: 3px;
+}
+.check {
+  position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff;
+  background: rgba(0,0,0,.35); display: grid; place-items: center; font-weight: 800; font-size: 15px; color: #fff;
+}
+.comic[aria-pressed="true"] .check { background: var(--yellow); border-color: #15171c; color: #15171c; }
+.body { padding: 12px 14px 14px; display: grid; gap: 6px; flex: 1; align-content: start; }
+.body h3 { margin: 0; font-size: 15.5px; line-height: 1.25; font-weight: 800; }
+.credits { font-size: 12.5px; color: var(--muted); }
+.note { font-size: 13px; }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.badge {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; padding: 2px 7px; border-radius: 4px;
+  background: var(--chip); color: var(--muted);
+}
+.badge.key { background: var(--yellow); color: #15171c; }
+.badge.trade { background: var(--cyan); color: #fff; }
+
+.empty {
+  border: 2px dashed var(--line); border-radius: 12px; padding: 28px; text-align: center; color: var(--muted); display: grid; gap: 12px;
+  justify-items: center;
+}
+.thinking { display: flex; gap: 10px; align-items: center; color: var(--muted); padding: 24px 0; }
+.dots span { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; animation: bob 1s infinite; }
+.dots span:nth-child(1) { background: var(--cyan); }
+.dots span:nth-child(2) { background: var(--magenta); animation-delay: .15s; }
+.dots span:nth-child(3) { background: var(--yellow); animation-delay: .3s; }
+@keyframes bob { 50% { transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .dots span { animation: none; } .comic { transition: none; } }
+
+/* Pull list */
+.pull {
+  position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); background: var(--card); border: 2px solid var(--ink);
+  border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; max-height: calc(100vh - 32px); display: flex; flex-direction: column;
+}
+@media (max-width: 920px) { .pull { position: static; max-height: none; } }
+.pull header { padding: 14px 16px; background: var(--ink); color: var(--paper); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pull header h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; letter-spacing: 1px; line-height: 1; }
+.pull header button { background: transparent; border: 1.5px solid var(--paper); color: var(--paper); border-radius: 6px; font-size: 12px; padding: 3px 8px; cursor: pointer; font-weight: 700; }
+.pull .list { overflow-y: auto; padding: 6px 0; }
+.pull .none { padding: 18px 16px; color: var(--muted); font-size: 14px; }
+.item { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.item:last-child { border-bottom: 0; }
+.item .top { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+.item .top b { font-size: 14px; line-height: 1.3; }
+.item .top .x { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
+.tip { font-size: 12.5px; color: var(--muted); }
+.tip strong { color: var(--ink); }
+.stores { display: flex; flex-wrap: wrap; gap: 6px; }
+.store {
+  font-size: 12px; font-weight: 700; text-decoration: none; border: 1.5px solid var(--line); border-radius: 6px; padding: 4px 8px;
+  display: inline-flex; gap: 5px; align-items: center; background: var(--paper);
+}
+.store:hover { border-color: var(--ink); }
+.store .dot { width: 8px; height: 8px; border-radius: 50%; }
+.store.best { border-color: var(--ink); background: var(--yellow); color: #15171c; }
+.legend { padding: 12px 16px; border-top: 2px solid var(--ink); font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
+.legend b { color: var(--ink); }
+
+.fallback { border: 2px dashed var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 10px; }
+.fallback h3 { margin: 0; font-size: 18px; }
+.fallback p { margin: 0; color: var(--muted); max-width: 65ch; }
+.flabel { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-top: 6px; }
+.manual { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.manual label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.manual input { border: 1.5px solid var(--line); border-radius: 6px; padding: 7px 9px; background: var(--card); width: 90px; }
+.manual label:first-child input { width: min(260px, 70vw); }
+.thinking { flex-wrap: wrap; }
+.progress { flex-basis: 100%; font-family: var(--mono); font-size: 12px; }
+.source a { color: inherit; }
+
+
+/* Phone version additions */
+.keypanel { background: var(--card); border: 2px solid var(--ink); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; }
+.keypanel .ktitle { font-weight: 800; }
+.keypanel p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.krow { display: flex; flex-wrap: wrap; gap: 8px; }
+.krow input { flex: 1 1 220px; min-width: 0; border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--paper); font-family: var(--mono); font-size: 13px; }
+.keystatus { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--muted); }
+.keystatus .on::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1f9d6b; margin-right: 6px; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--ink); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: 13px; }
+@media (max-width: 560px) {
+  .search { grid-template-columns: minmax(0, 1fr) auto; }
+  .modes { grid-column: 1 / -1; border-right: 0; border-bottom: 2px solid var(--ink); }
+  .modes button { flex: 1; padding: 10px; }
+  .go { border-left: 2px solid var(--ink); }
+}
+.related { margin-top: 22px; display: grid; gap: 8px; }
+.relchips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.foot { margin-top: 36px; color: var(--muted); font-size: 12.5px; max-width: 80ch; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div class="brand">
+      <h1 class="logo">Longbox Finder</h1>
+      <div class="reg" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <p class="tag">Look up a Marvel series or a character, pick the issues you want, and get links to the best places to buy each one.</p>
+
+    <form class="search" id="searchForm" role="search">
+      <div class="modes" role="group" aria-label="Search by">
+        <button type="button" id="modeSeries" aria-pressed="true">Series</button>
+        <button type="button" id="modeChar" aria-pressed="false">Character</button>
+      </div>
+      <input id="q" type="search" autocomplete="off" placeholder="e.g. Wolverine and Jubilee" aria-label="Search comics">
+      <button class="go" type="submit">Find</button>
+    </form>
+    <div id="keybar"></div>
+    <div class="quick" id="quick">
+      <small>Try</small>
+    </div>
+  </header>
+
+  <main class="main">
+    <section aria-live="polite">
+      <div id="results"></div>
+    </section>
+
+    <aside class="pull" aria-label="Your pull list">
+      <header>
+        <h2>Pull List <span id="pullCount"></span></h2>
+        <button type="button" id="clearPull">Clear</button>
+      </header>
+      <div class="list" id="pullList"></div>
+      <div class="legend">
+        <div><b>Highlighted store</b> = best bet for that comic's format and age.</div>
+        <div><b>eBay sold</b> shows what copies actually sold for, so you know a fair price.</div>
+      </div>
+    </aside>
+  </main>
+
+  <p class="foot">Links open a search on each store's own site, so you always see current listings and prices there. Not affiliated with Marvel or any store. Series and character data from <a href="https://comicvine.gamespot.com/" target="_blank" rel="noopener">Comic Vine</a>.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Built-in catalog ----------
+  // kind: "series" (a run of issues) or "character" (notable comics featuring them)
+  const CATALOG = [
+    {
+      kind: "series", name: "Wolverine and Jubilee", aliases: ["wolverine & jubilee", "wolverine jubilee"],
+      summary: "2011 four-issue limited series. Jubilee, newly turned into a vampire, and Wolverine try to work through it together.",
+      tags: ["wolverine", "jubilee", "x-men"],
+      comics: [1, 2, 3, 4].map(n => ({ series: "Wolverine and Jubilee", issue: String(n), year: 2011, writer: "Kathryn Immonen", artist: "Phil Noto", format: "single", note: ["Jubilee wakes up a vampire after Curse of the Mutants.", "Logan and Jubes head to Paris.", "Old friends, new trouble.", "Series finale."][n - 1] }))
+        .concat([{ series: "Wolverine and Jubilee: Curse of the Mutants", issue: "", year: 2011, writer: "Kathryn Immonen", artist: "Phil Noto", format: "trade", note: "Collects all four issues in one book." }])
+    },
+    {
+      kind: "series", name: "Wolverine (1982 limited series)", aliases: ["wolverine 1982", "wolverine limited series", "wolverine miller", "wolverine japan"],
+      summary: "Chris Claremont and Frank Miller's four-issue mini set in Japan. The story that made Wolverine a solo star.",
+      tags: ["wolverine", "mariko", "x-men"],
+      comics: [1, 2, 3, 4].map(n => ({ series: "Wolverine", issue: String(n), year: 1982, writer: "Chris Claremont", artist: "Frank Miller", format: "single", key: n === 1, note: n === 1 ? "First solo Wolverine series. Key issue." : "" }))
+    },
+    {
+      kind: "series", name: "Kitty Pryde and Wolverine", aliases: ["kitty pryde & wolverine"],
+      summary: "1984-85 six-issue limited series. Logan trains Kitty Pryde in Japan.",
+      tags: ["wolverine", "kitty pryde", "shadowcat", "x-men"],
+      comics: [1, 2, 3, 4, 5, 6].map(n => ({ series: "Kitty Pryde and Wolverine", issue: String(n), year: n < 6 ? 1984 : 1985, writer: "Chris Claremont", artist: "Al Milgrom", format: "single", note: "" }))
+    },
+    {
+      kind: "series", name: "Old Man Logan", aliases: ["old man logan wolverine"],
+      summary: "Mark Millar and Steve McNiven's future-western, told in Wolverine (2003) #66-72 and Giant-Size Old Man Logan.",
+      tags: ["wolverine", "hawkeye"],
+      comics: [66, 67, 68, 69, 70, 71, 72].map(n => ({ series: "Wolverine", issue: String(n), year: n < 70 ? 2008 : 2009, writer: "Mark Millar", artist: "Steve McNiven", format: "single", key: n === 66, note: n === 66 ? "Part 1 of Old Man Logan." : "Old Man Logan, part " + (n - 65) + "." }))
+        .concat([{ series: "Giant-Size Old Man Logan", issue: "1", year: 2009, writer: "Mark Millar", artist: "Steve McNiven", format: "single", note: "Finale." },
+                 { series: "Wolverine: Old Man Logan", issue: "", year: 2009, writer: "Mark Millar", artist: "Steve McNiven", format: "trade", note: "Collects the full story." }])
+    },
+    {
+      kind: "series", name: "Jubilee (2004)", aliases: ["jubilee 2004", "jubilee kirkman"],
+      summary: "Robert Kirkman's six-issue series. Jubilee moves to Los Angeles and tries high school as a former mutant-in-training.",
+      tags: ["jubilee"],
+      comics: [1, 2, 3, 4, 5, 6].map(n => ({ series: "Jubilee", issue: String(n), year: 2004, writer: "Robert Kirkman", artist: "Derec Aucoin", format: "single", note: "" }))
+    },
+    {
+      kind: "series", name: "Deadpool: The Circle Chase", aliases: ["circle chase", "deadpool circle chase"],
+      summary: "1993 four-issue limited series. Deadpool's first solo series.",
+      tags: ["deadpool"],
+      comics: [1, 2, 3, 4].map(n => ({ series: "Deadpool: The Circle Chase", issue: String(n), year: 1993, writer: "Fabian Nicieza", artist: "Joe Madureira", format: "single", key: n === 1, note: n === 1 ? "First Deadpool solo comic." : "" }))
+    },
+    {
+      kind: "series", name: "Kraven's Last Hunt", aliases: ["kravens last hunt", "kraven last hunt"],
+      summary: "1987 Spider-Man crossover by J.M. DeMatteis and Mike Zeck, across three titles in reading order.",
+      tags: ["spider-man", "kraven"],
+      comics: [
+        { series: "Web of Spider-Man", issue: "31", year: 1987, note: "Part 1." },
+        { series: "Amazing Spider-Man", issue: "293", year: 1987, note: "Part 2." },
+        { series: "Spectacular Spider-Man", issue: "131", year: 1987, note: "Part 3." },
+        { series: "Web of Spider-Man", issue: "32", year: 1987, note: "Part 4." },
+        { series: "Amazing Spider-Man", issue: "294", year: 1987, note: "Part 5." },
+        { series: "Spectacular Spider-Man", issue: "132", year: 1987, note: "Part 6." }
+      ].map(c => Object.assign({ writer: "J.M. DeMatteis", artist: "Mike Zeck", format: "single" }, c))
+        .concat([{ series: "Spider-Man: Kraven's Last Hunt", issue: "", year: 1987, writer: "J.M. DeMatteis", artist: "Mike Zeck", format: "trade", note: "Collects all six parts." }])
+    },
+    {
+      kind: "character", name: "Jubilee", aliases: ["jubilation lee"],
+      summary: "Jubilation Lee, the mall-rat mutant who throws fireworks. Here are her key appearances and series.",
+      tags: ["jubilee"],
+      comics: [
+        { series: "Uncanny X-Men", issue: "244", year: 1989, writer: "Chris Claremont", artist: "Marc Silvestri", format: "single", key: true, note: "First appearance of Jubilee." },
+        { series: "Generation X", issue: "1", year: 1994, writer: "Scott Lobdell", artist: "Chris Bachalo", format: "single", note: "Jubilee joins the new team at the Massachusetts Academy." },
+        { series: "Jubilee", issue: "1", year: 2004, writer: "Robert Kirkman", artist: "Derec Aucoin", format: "single", note: "First issue of her solo series." },
+        { series: "Wolverine and Jubilee", issue: "1", year: 2011, writer: "Kathryn Immonen", artist: "Phil Noto", format: "single", note: "Start of the 4-issue vampire-era mini." },
+        { series: "X-Men", issue: "1", year: 2013, writer: "Brian Wood", artist: "Olivier Coipel", format: "single", note: "Jubilee returns with a baby, kicking off the all-women X-Men team." },
+        { series: "Wolverine and Jubilee: Curse of the Mutants", issue: "", year: 2011, writer: "Kathryn Immonen", artist: "Phil Noto", format: "trade", note: "The 2011 mini, collected." }
+      ]
+    },
+    {
+      kind: "character", name: "Wolverine", aliases: ["logan", "james howlett"],
+      summary: "Logan, the clawed X-Man. Key appearances and essential stories.",
+      tags: ["wolverine"],
+      comics: [
+        { series: "Incredible Hulk", issue: "181", year: 1974, writer: "Len Wein", artist: "Herb Trimpe", format: "single", key: true, note: "First full appearance of Wolverine." },
+        { series: "Giant-Size X-Men", issue: "1", year: 1975, writer: "Len Wein", artist: "Dave Cockrum", format: "single", key: true, note: "Wolverine joins the new X-Men." },
+        { series: "Wolverine", issue: "1", year: 1982, writer: "Chris Claremont", artist: "Frank Miller", format: "single", key: true, note: "First solo limited series." },
+        { series: "Kitty Pryde and Wolverine", issue: "1", year: 1984, writer: "Chris Claremont", artist: "Al Milgrom", format: "single", note: "Logan mentors Kitty Pryde." },
+        { series: "Wolverine", issue: "1", year: 1988, writer: "Chris Claremont", artist: "John Buscema", format: "single", note: "First ongoing solo series." },
+        { series: "Wolverine and Jubilee", issue: "1", year: 2011, writer: "Kathryn Immonen", artist: "Phil Noto", format: "single", note: "Team-up with Jubilee." },
+        { series: "Wolverine: Old Man Logan", issue: "", year: 2009, writer: "Mark Millar", artist: "Steve McNiven", format: "trade", note: "The classic future story, collected." }
+      ]
+    },
+    {
+      kind: "character", name: "Deadpool", aliases: ["wade wilson"],
+      summary: "Wade Wilson, the Merc with a Mouth. Key appearances.",
+      tags: ["deadpool"],
+      comics: [
+        { series: "New Mutants", issue: "98", year: 1991, writer: "Fabian Nicieza", artist: "Rob Liefeld", format: "single", key: true, note: "First appearance of Deadpool." },
+        { series: "Deadpool: The Circle Chase", issue: "1", year: 1993, writer: "Fabian Nicieza", artist: "Joe Madureira", format: "single", key: true, note: "First solo series." },
+        { series: "Deadpool", issue: "1", year: 1997, writer: "Joe Kelly", artist: "Ed McGuinness", format: "single", note: "First ongoing series." }
+      ]
+    },
+    {
+      kind: "character", name: "Spider-Man", aliases: ["peter parker", "spiderman", "spider man"],
+      summary: "Peter Parker. Key issues and a classic story.",
+      tags: ["spider-man"],
+      comics: [
+        { series: "Amazing Fantasy", issue: "15", year: 1962, writer: "Stan Lee", artist: "Steve Ditko", format: "single", key: true, note: "First appearance of Spider-Man. Very expensive." },
+        { series: "Amazing Spider-Man", issue: "1", year: 1963, writer: "Stan Lee", artist: "Steve Ditko", format: "single", key: true, note: "First issue of his own title." },
+        { series: "Amazing Spider-Man", issue: "300", year: 1988, writer: "David Michelinie", artist: "Todd McFarlane", format: "single", key: true, note: "First full appearance of Venom." },
+        { series: "Spider-Man: Kraven's Last Hunt", issue: "", year: 1987, writer: "J.M. DeMatteis", artist: "Mike Zeck", format: "trade", note: "Classic six-part story, collected." }
+      ]
+    }
+  ];
+
+  const QUICK = [
+    ["series", "Wolverine and Jubilee"], ["character", "Jubilee"], ["series", "Old Man Logan"],
+    ["character", "Deadpool"], ["series", "Kraven's Last Hunt"], ["character", "Storm"]
+  ];
+
+  // ---------- Stores ----------
+  const enc = s => encodeURIComponent(s);
+  const STORES = {
+    ebay:      { name: "eBay",          color: "#e53238", url: q => "https://www.ebay.com/sch/i.html?_nkw=" + enc(q) + "&_sacat=259104" },
+    ebaySold:  { name: "eBay sold",     color: "#86b817", url: q => "https://www.ebay.com/sch/i.html?_nkw=" + enc(q) + "&_sacat=259104&LH_Sold=1&LH_Complete=1" },
+    mcs:       { name: "MyComicShop",   color: "#2a6db0", url: q => "https://www.mycomicshop.com/search?q=" + enc(q) },
+    midtown:   { name: "Midtown Comics",color: "#f7a600", url: q => "https://www.midtowncomics.com/search?q=" + enc(q) },
+    amazon:    { name: "Amazon",        color: "#ff9900", url: q => "https://www.amazon.com/s?k=" + enc(q) + "&i=stripbooks" },
+    kindle:    { name: "Kindle / digital", color: "#00a8e1", url: q => "https://www.amazon.com/s?k=" + enc(q) + "&i=digital-text" },
+    mercari:   { name: "Mercari",       color: "#5356ee", url: q => "https://www.mercari.com/search/?keyword=" + enc(q) },
+    shop:      { name: "Find a local shop", color: "#888", url: () => "https://www.comicshoplocator.com/" }
+  };
+
+  function plan(c) {
+    // Returns ordered store keys, the best one first, plus a short tip.
+    const yr = Number(c.year) || 2000;
+    if (c.format === "trade" || c.format === "omnibus") {
+      return { order: ["amazon", "kindle", "midtown", "mcs", "ebay", "shop"],
+        tip: "<strong>Collected edition.</strong> Amazon usually has the best new price; eBay for out-of-print copies." };
+    }
+    if (c.key) {
+      return { order: ["ebay", "ebaySold", "mcs", "midtown", "mercari", "shop"],
+        tip: "<strong>Key issue.</strong> Check eBay sold prices first, and look for CGC-graded copies to avoid fakes and restored books." };
+    }
+    if (yr < 1990) {
+      return { order: ["mcs", "ebay", "ebaySold", "midtown", "mercari", "shop"],
+        tip: "<strong>Older back issue.</strong> MyComicShop grades carefully and lists condition; eBay often has cheaper raw copies." };
+    }
+    if (yr >= new Date().getFullYear() - 1) {
+      return { order: ["midtown", "mcs", "shop", "ebay", "kindle"],
+        tip: "<strong>Recent issue.</strong> A local shop or Midtown will likely have it at cover price." };
+    }
+    return { order: ["mcs", "ebay", "midtown", "ebaySold", "kindle", "shop"],
+      tip: "<strong>Modern back issue.</strong> Usually cheap. MyComicShop and eBay are the easiest places to find it." };
+  }
+
+  const label = c => c.series + (c.issue ? " #" + c.issue : "") + (c.year ? " (" + c.year + ")" : "");
+  const queryFor = c => c.issue ? c.series + " #" + c.issue + " " + (c.year || "") : c.series + " " + (c.format === "omnibus" ? "omnibus" : "trade paperback");
+  const keyOf = c => [c.series, c.issue, c.year, c.format].join("|").toLowerCase();
+
+  // ---------- State ----------
+  let mode = "series";
+  let current = null;   // { title, summary, comics, source, run? }
+  let pull = [];
+  try { pull = JSON.parse(localStorage.getItem("longbox-pull") || "[]"); if (!Array.isArray(pull)) pull = []; } catch (e) { pull = []; }
+  const savePull = () => { try { localStorage.setItem("longbox-pull", JSON.stringify(pull)); } catch (e) {} };
+
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+  function normalizeComics(data) {
+    return Array.isArray(data && data.comics) ? data.comics.filter(c => c && c.series).map(c => ({
+      series: String(c.series), issue: c.issue == null ? "" : String(c.issue).replace(/^#/, ""), year: Number(c.year) || "",
+      writer: c.writer ? String(c.writer) : "", artist: c.artist ? String(c.artist) : "",
+      format: ["single", "trade", "omnibus"].includes(c.format) ? c.format : (c.issue ? "single" : "trade"),
+      key: !!c.key, note: c.note ? String(c.note) : ""
+    })) : [];
+  }
+
+  // ---------- Comic Vine (phone version) ----------
+  // The phone app can't use Claude, so unknown series and characters are looked up
+  // with the Comic Vine API (JSONP, since the API doesn't allow cross-site fetch).
+  const CV = "https://comicvine.gamespot.com";
+  const KEY_STORE = "longbox-cv-key";
+  const DISMISS_STORE = "longbox-cv-dismissed";
+  let cvKey = "";
+  let keyDismissed = false;
+  try { cvKey = localStorage.getItem(KEY_STORE) || ""; keyDismissed = localStorage.getItem(DISMISS_STORE) === "1"; } catch (e) {}
+  let liveOK = !!cvKey;
+  let ctl = null;
+  let cbN = 0;
+  const mkCtl = () => ({ aborted: false, abort() { this.aborted = true; } });
+
+  function cv(path, params) {
+    return new Promise((resolve, reject) => {
+      const cb = "__cv" + Date.now() + "_" + (++cbN);
+      const s = document.createElement("script");
+      const qs = new URLSearchParams(Object.assign({ api_key: cvKey, format: "jsonp", json_callback: cb }, params));
+      const timer = setTimeout(() => { done(); reject({ code: "timeout" }); }, 20000);
+      function done() { clearTimeout(timer); window[cb] = function () {}; s.remove(); }
+      window[cb] = data => {
+        done();
+        if (data && data.status_code === 1) resolve(data);
+        else reject({ code: data && data.status_code === 100 ? "bad_key" : data && data.status_code === 107 ? "rate_limited" : "cv_error", message: data && data.error });
+      };
+      s.onerror = () => { done(); reject({ code: "load_failed" }); };
+      s.src = CV + "/api/" + path + "?" + qs.toString();
+      document.head.append(s);
+    });
+  }
+
+  const isMarvel = x => !!(x && x.publisher && /marvel/i.test(x.publisher.name || ""));
+  const safeCv = u => typeof u === "string" && u.startsWith(CV + "/") ? u : "";
+  const yearOf = d => d ? Number(String(d).slice(0, 4)) || "" : "";
+  const volInfo = v => ({ id: v.id, name: String(v.name || ""), start_year: v.start_year, count_of_issues: v.count_of_issues, site_detail_url: v.site_detail_url });
+
+  function cvMessage(code) {
+    if (code === "bad_key") return "Comic Vine didn't accept your API key. Check it with “Change key” at the top.";
+    if (code === "load_failed") return "Couldn't reach Comic Vine. Check your internet connection and that your API key is right (Comic Vine answers a wrong key this way too).";
+    if (code === "rate_limited") return "Comic Vine's hourly lookup limit was reached. Try again later.";
+    if (code === "timeout") return "Comic Vine took too long to answer. Try again.";
+    return "Comic Vine returned an error. Try again.";
+  }
+
+  async function cvLookup(query, kind) {
+    if (!cvKey) {
+      showFallback(query, "Add your free Comic Vine API key at the top to look up any Marvel series or character, including brand-new ones.");
+      renderKeybar(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    ctl && ctl.abort();
+    const my = ctl = mkCtl();
+    renderThinking(query, "Looking up “" + query + "” on Comic Vine…");
+    try {
+      if (kind === "character") await cvCharacter(query, my);
+      else await cvSeries(query, my);
+    } catch (e) {
+      if (!my.aborted) showFallback(query, cvMessage(e && e.code));
+    }
+  }
+  const askClaude = cvLookup;
+  const liveLookup = cvLookup;
+
+  async function cvSeries(query, my) {
+    const r = await cv("search/", { query, resources: "volume", field_list: "id,name,start_year,publisher,count_of_issues,site_detail_url", limit: 30 });
+    if (my.aborted) return;
+    const vols = (r.results || []).filter(isMarvel);
+    if (!vols.length) { showFallback(query, "Comic Vine has no Marvel series matching “" + query + "”. Check the spelling, or add the issues yourself."); return; }
+    const q = norm(query);
+    const exact = vols.filter(v => norm(v.name || "") === q).sort((a, b) => (Number(b.start_year) || 0) - (Number(a.start_year) || 0));
+    const pick = exact[0] || vols[0];
+    await cvShowVolume(volInfo(pick), vols.filter(v => v !== pick).slice(0, 8).map(volInfo), query, my);
+  }
+
+  async function cvShowVolume(vol, others, query, my) {
+    const label = vol.name + (vol.start_year ? " (" + vol.start_year + ")" : "");
+    renderThinking(label, "Loading the issues of " + label + "…");
+    const r = await cv("issues/", { filter: "volume:" + vol.id, field_list: "id,issue_number,cover_date,name", sort: "cover_date:asc", limit: 100 });
+    if (my.aborted) return;
+    const issues = (r.results || []).slice().sort((a, b) => (parseFloat(a.issue_number) || 0) - (parseFloat(b.issue_number) || 0));
+    const comics = issues.map(i => ({
+      series: vol.name, issue: String(i.issue_number || ""), year: yearOf(i.cover_date) || Number(vol.start_year) || "",
+      writer: "", artist: "", format: "single", key: false, note: i.name ? String(i.name) : ""
+    }));
+    const total = Number(r.number_of_total_results) || comics.length;
+    current = {
+      title: label,
+      summary: "Marvel series from Comic Vine, " + total + " issue" + (total === 1 ? "" : "s") + (total > comics.length ? " (showing the first " + comics.length + ")" : "") + ".",
+      comics, source: "Comic Vine", sourceUrl: safeCv(vol.site_detail_url), kind: "series", query,
+      related: others, relatedLabel: "Other Marvel series with similar names"
+    };
+    renderResults();
+  }
+
+  async function cvCharacter(query, my) {
+    const r = await cv("search/", { query, resources: "character", field_list: "id,name,publisher,real_name,count_of_issue_appearances", limit: 20 });
+    if (my.aborted) return;
+    const chars = (r.results || []).filter(isMarvel);
+    if (!chars.length) { showFallback(query, "Comic Vine has no Marvel character matching “" + query + "”. Check the spelling."); return; }
+    const q = norm(query);
+    const byApps = (a, b) => (b.count_of_issue_appearances || 0) - (a.count_of_issue_appearances || 0);
+    const pick = chars.filter(x => norm(x.name || "") === q || norm(x.real_name || "") === q).sort(byApps)[0] || chars.slice().sort(byApps)[0];
+    renderThinking(pick.name, "Loading " + pick.name + "'s comics…");
+    const d = await cv("character/4005-" + pick.id + "/", { field_list: "name,deck,first_appeared_in_issue,volume_credits,site_detail_url,count_of_issue_appearances" });
+    if (my.aborted) return;
+    const ch = d.results || {};
+    const name = String(ch.name || pick.name);
+    const comics = [];
+    const fa = ch.first_appeared_in_issue;
+    if (fa && fa.id) {
+      try {
+        const i = await cv("issue/4000-" + fa.id + "/", { field_list: "issue_number,cover_date,volume,name" });
+        const iss = i.results || {};
+        comics.push({ series: String((iss.volume && iss.volume.name) || fa.name || "First appearance"), issue: String(iss.issue_number || fa.issue_number || ""), year: yearOf(iss.cover_date), writer: "", artist: "", format: "single", key: true, note: "First appearance of " + name + "." });
+      } catch (e) { if (e && e.code === "bad_key") throw e; }
+    }
+    if (my.aborted) return;
+    const local = localMatch(query, "character");
+    if (local) local.comics.forEach(x => { if (!comics.some(y => keyOf(y) === keyOf(x) || (y.series === x.series && y.issue === x.issue))) comics.push(x); });
+    const ids = (Array.isArray(ch.volume_credits) ? ch.volume_credits : []).map(v => Number(v.id)).filter(Boolean).sort((a, b) => b - a).slice(0, 60);
+    let related = [];
+    if (ids.length) {
+      const v = await cv("volumes/", { filter: "id:" + ids.join("|"), field_list: "id,name,start_year,publisher,count_of_issues,site_detail_url", limit: 100 });
+      if (my.aborted) return;
+      related = (v.results || []).filter(isMarvel).sort((a, b) => (Number(b.start_year) || 0) - (Number(a.start_year) || 0)).slice(0, 16).map(volInfo);
+    }
+    const apps = Number(ch.count_of_issue_appearances) || 0;
+    current = {
+      title: name,
+      summary: [ch.deck ? String(ch.deck) : "", apps ? "Appears in " + apps.toLocaleString() + " issues." : "", related.length ? "Tap a series below to see its issues." : ""].filter(Boolean).join(" "),
+      comics, source: "Comic Vine", sourceUrl: safeCv(ch.site_detail_url), kind: "character", query,
+      related, relatedLabel: "Series featuring " + name + ", newest first"
+    };
+    renderResults();
+  }
+
+  function relatedBox(c) {
+    const box = el("div", "related");
+    box.append(el("div", "flabel", c.relatedLabel || "Related series"));
+    const wrap = el("div", "relchips");
+    c.related.forEach(v => {
+      const b = el("button", "pill", v.name + (v.start_year ? " (" + v.start_year + ")" : "") + (v.count_of_issues ? " · " + v.count_of_issues + " issues" : ""));
+      b.type = "button";
+      b.addEventListener("click", async () => {
+        ctl && ctl.abort();
+        const my = ctl = mkCtl();
+        try { await cvShowVolume(v, [], v.name, my); }
+        catch (e) { if (!my.aborted) showFallback(v.name, cvMessage(e && e.code)); }
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      wrap.append(b);
+    });
+    box.append(wrap);
+    return box;
+  }
+
+  function setKey(k) {
+    cvKey = k;
+    liveOK = !!k;
+    try { if (k) localStorage.setItem(KEY_STORE, k); else localStorage.removeItem(KEY_STORE); } catch (e) {}
+    renderKeybar(false);
+    if (current) renderResults();
+  }
+
+  function renderKeybar(open) {
+    const bar = $("keybar");
+    bar.replaceChildren();
+    if (!open && cvKey) {
+      const s = el("div", "keystatus");
+      s.append(el("span", "on", "Comic Vine lookups on"));
+      const b = el("button", "linkbtn", "Change key"); b.type = "button";
+      b.addEventListener("click", () => renderKeybar(true));
+      s.append(b);
+      bar.append(s);
+      return;
+    }
+    if (!open && keyDismissed) {
+      const s = el("div", "keystatus");
+      const b = el("button", "linkbtn", "Add a Comic Vine key to look up any series"); b.type = "button";
+      b.addEventListener("click", () => renderKeybar(true));
+      s.append(b);
+      bar.append(s);
+      return;
+    }
+    const p = el("form", "keypanel");
+    p.append(el("div", "ktitle", cvKey ? "Change your Comic Vine API key" : "Look up any Marvel series, even brand-new ones"));
+    const help = el("p", null, "Get a free API key at ");
+    const a = el("a", null, "comicvine.gamespot.com/api"); a.href = "https://comicvine.gamespot.com/api/"; a.target = "_blank"; a.rel = "noopener";
+    help.append(a, document.createTextNode(" (sign in, then copy the key it shows you). The key is saved only on this device."));
+    p.append(help);
+    const row = el("div", "krow");
+    const inp = el("input"); inp.id = "cvKey"; inp.placeholder = "Paste your API key"; inp.autocomplete = "off"; inp.spellcheck = false; inp.value = cvKey;
+    inp.setAttribute("aria-label", "Comic Vine API key");
+    const save = el("button", "btn primary", "Save key"); save.type = "submit";
+    row.append(inp, save);
+    if (cvKey) {
+      const rm = el("button", "btn", "Remove"); rm.type = "button"; rm.addEventListener("click", () => setKey(""));
+      const cancel = el("button", "btn", "Cancel"); cancel.type = "button"; cancel.addEventListener("click", () => renderKeybar(false));
+      row.append(rm, cancel);
+    } else {
+      const later = el("button", "btn", "Not now"); later.type = "button";
+      later.addEventListener("click", () => { keyDismissed = true; try { localStorage.setItem(DISMISS_STORE, "1"); } catch (e) {} renderKeybar(false); });
+      row.append(later);
+    }
+    p.append(row);
+    p.addEventListener("submit", e => { e.preventDefault(); const k = inp.value.trim(); if (k) setKey(k); });
+    bar.append(p);
+  }
+
+  function showFallback(query, message) {
+    const root = $("results");
+    root.replaceChildren(fallbackBox(query, message));
+  }
+
+  // Shown when a series is unknown: direct store searches + add issues by hand.
+  function fallbackBox(query, message) {
+    const box = el("div", "fallback");
+    box.append(el("h3", null, "Can't find “" + query + "”"));
+    box.append(el("p", null, message));
+    {
+      const again = el("button", "btn", liveOK ? "Try Comic Vine again" : "Add a Comic Vine key to look it up");
+      again.type = "button";
+      again.style.justifySelf = "start";
+      again.addEventListener("click", () => liveLookup(query, mode));
+      box.append(again);
+    }
+    box.append(el("div", "flabel", "Search the stores directly"));
+    const stores = el("div", "stores");
+    ["midtown", "mcs", "ebay", "amazon", "kindle", "shop"].forEach((k, i) => stores.append(storeLink(k, query + " marvel comic", i === 0)));
+    box.append(stores);
+    box.append(el("div", "flabel", "Or add the issues yourself"));
+    const yr = new Date().getFullYear();
+    const form = el("form", "manual");
+    form.innerHTML =
+      '<label>Series<input id="mSeries" required></label>' +
+      '<label>From #<input id="mFrom" type="number" min="0" value="1" required></label>' +
+      '<label>To #<input id="mTo" type="number" min="0" value="4" required></label>' +
+      '<label>Year<input id="mYear" type="number" min="1939" max="' + (yr + 1) + '" value="' + yr + '" required></label>' +
+      '<button class="btn primary" type="submit">Show issues</button>';
+    form.querySelector("#mSeries").value = query.replace(/\b([a-z])/g, s => s.toUpperCase());
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const series = form.querySelector("#mSeries").value.trim();
+      let a = parseInt(form.querySelector("#mFrom").value, 10), b = parseInt(form.querySelector("#mTo").value, 10);
+      const year = parseInt(form.querySelector("#mYear").value, 10) || yr;
+      if (!series || isNaN(a) || isNaN(b)) return;
+      if (b < a) [a, b] = [b, a];
+      b = Math.min(b, a + 59);
+      const comics = [];
+      for (let n = a; n <= b; n++) comics.push({ series, issue: String(n), year, writer: "", artist: "", format: "single", key: false, note: n === a ? "First issue in your list." : "" });
+      current = { title: series, summary: "Issues you entered yourself. Each link searches the store for that exact issue.", comics, source: "Manual", kind: "series", query: series };
+      renderResults();
+    });
+    box.append(form);
+    return box;
+  }
+
+  // ---------- Search ----------
+  const norm = s => s.toLowerCase().replace(/[’']/g, "").replace(/&/g, "and").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+
+  function localMatch(query, kind) {
+    const q = norm(query);
+    if (!q) return null;
+    const pool = CATALOG.filter(e => e.kind === kind);
+    const exact = pool.find(e => norm(e.name) === q || e.aliases.some(a => norm(a) === q));
+    if (exact) return exact;
+    const partial = pool.find(e => norm(e.name).startsWith(q) || e.aliases.some(a => norm(a).startsWith(q)));
+    return partial || null;
+  }
+
+  function search(query, kind) {
+    query = query.trim();
+    if (!query) return;
+    setMode(kind);
+    $("q").value = query;
+    const hit = localMatch(query, kind);
+    if (hit) {
+      current = { title: hit.name, summary: hit.summary, comics: hit.comics, source: "Built-in", kind, query };
+      renderResults();
+    } else {
+      askClaude(query, kind);
+    }
+  }
+
+  // ---------- Rendering ----------
+  const PALETTE = ["#d6246e", "#0094c6", "#e2a300", "#5b3fd1", "#1f9d6b", "#e0532b", "#2c3e8f", "#b0278f"];
+  function hue(s) { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; }
+
+  function comicCard(c) {
+    const k = keyOf(c);
+    const card = el("button", "comic");
+    card.type = "button";
+    card.setAttribute("aria-pressed", pull.some(p => keyOf(p) === k) ? "true" : "false");
+    const cover = el("div", "cover");
+    const base = hue(c.series);
+    cover.style.background = "linear-gradient(135deg, " + base + ", " + base + "cc 60%, #15171c)";
+    if (c.year) cover.append(el("span", "yr", String(c.year)));
+    cover.append(el("span", "num", c.issue ? "#" + c.issue : (c.format === "omnibus" ? "OMNI" : "TPB")));
+    const check = el("span", "check", card.getAttribute("aria-pressed") === "true" ? "✓" : "+");
+    check.setAttribute("aria-hidden", "true");
+    cover.append(check);
+    const body = el("div", "body");
+    body.append(el("h3", null, c.series + (c.issue ? " #" + c.issue : "")));
+    const cr = [c.writer, c.artist].filter(Boolean).join(" / ");
+    if (cr) body.append(el("div", "credits", cr));
+    if (c.note) body.append(el("div", "note", c.note));
+    const badges = el("div", "badges");
+    if (c.key) badges.append(el("span", "badge key", "Key issue"));
+    if (c.format !== "single") badges.append(el("span", "badge trade", c.format === "omnibus" ? "Omnibus" : "Collected"));
+    else badges.append(el("span", "badge", "Single issue"));
+    body.append(badges);
+    card.append(cover, body);
+    card.setAttribute("aria-label", (card.getAttribute("aria-pressed") === "true" ? "Remove " : "Add ") + label(c) + " to pull list");
+    card.addEventListener("click", () => toggle(c));
+    return card;
+  }
+
+  function renderResults() {
+    const root = $("results");
+    root.replaceChildren();
+    const c = current;
+    const status = el("div", "status");
+    const h = el("h2", null, c.title);
+    status.append(h);
+    const singles = c.comics.filter(x => x.format === "single").length;
+    status.append(el("span", "meta", c.comics.length + " comic" + (c.comics.length === 1 ? "" : "s") + (singles && singles !== c.comics.length ? " · " + singles + " single issues" : "")));
+    root.append(status);
+    const sum = el("p", "summary", c.summary);
+    const srcTag = el("span", "source");
+    if (c.source === "Comic Vine" && c.sourceUrl) {
+      const a = el("a", null, "live from Comic Vine ↗"); a.href = c.sourceUrl; a.target = "_blank"; a.rel = "noopener";
+      srcTag.append(a);
+    } else {
+      srcTag.textContent = { Claude: "from Claude", "Comic Vine": "live from Comic Vine", Manual: "entered by you" }[c.source] || "built-in";
+    }
+    sum.append(srcTag);
+    root.append(sum);
+
+    if (!c.comics.length && !(c.related && c.related.length)) {
+      root.append(fallbackBox(c.query || c.title, "Claude doesn't recognize this one. It may be newer than Claude knows about, since Claude can't browse the web on its own."));
+      return;
+    }
+
+    const tb = el("div", "toolbar");
+    const allBtn = el("button", "btn primary", "Add all to pull list");
+    allBtn.type = "button";
+    allBtn.addEventListener("click", () => { c.comics.forEach(x => { if (!pull.some(p => keyOf(p) === keyOf(x))) pull.push(x); }); savePull(); renderResults(); renderPull(); });
+    tb.append(allBtn);
+    if (c.kind === "series" && singles > 1) {
+      const first = c.comics.find(x => x.format === "single");
+      const nums = c.comics.filter(x => x.format === "single" && x.series === first.series).map(x => x.issue);
+      const lotQ = first.series + " " + nums[0] + "-" + nums[nums.length - 1] + " lot";
+      const lot = el("a", "btn", "Search eBay for the full set ↗");
+      lot.href = STORES.ebay.url(lotQ); lot.target = "_blank"; lot.rel = "noopener";
+      tb.append(lot);
+    }
+    if (c.source === "Built-in" && !liveOK) {
+      const more = el("button", "btn", "Look up more on Comic Vine");
+      more.type = "button";
+      more.addEventListener("click", () => askClaude(c.query || c.title, c.kind));
+      tb.append(more);
+    }
+    if (liveOK && c.source === "Built-in") {
+      const live = el("button", "btn", "Check Comic Vine for newer issues");
+      live.type = "button";
+      live.addEventListener("click", () => liveLookup(c.query || c.title, c.kind));
+      tb.append(live);
+    }
+    root.append(tb);
+
+    const grid = el("div", "grid");
+    c.comics.forEach(x => grid.append(comicCard(x)));
+    root.append(grid);
+    if (c.related && c.related.length) root.append(relatedBox(c));
+  }
+
+  function renderThinking(query, message) {
+    const root = $("results");
+    root.replaceChildren();
+    const t = el("div", "thinking");
+    const d = el("span", "dots"); d.append(el("span"), el("span"), el("span"));
+    t.append(d, el("span", null, message || "Asking Claude about “" + query + "”. This can take up to a minute."));
+    const stop = el("button", "btn", "Stop"); stop.type = "button";
+    stop.addEventListener("click", () => { ctl && ctl.abort(); current ? renderResults() : renderWelcome(); });
+    t.append(stop);
+    const prog = el("span", "progress"); prog.id = "progress";
+    t.append(prog);
+    root.append(t);
+  }
+
+  function renderNoClaude(query) {
+    showFallback(query, "“" + query + "” isn't in the built-in list, and Claude lookups aren't available in this view.");
+  }
+
+  function renderError(query, kind, code) {
+    const root = $("results");
+    root.replaceChildren();
+    const box = el("div", "empty");
+    const msg = code === "rate_limited" ? "Claude is busy or you've hit a usage limit. Wait a moment and try again."
+      : code === "invalid_json" ? "Claude's answer came back in an unexpected format."
+      : code === "refused" ? "Claude couldn't answer that search. Try wording it differently."
+      : "The lookup didn't finish.";
+    box.append(el("div", null, msg));
+    const retry = el("button", "btn", "Try again"); retry.type = "button";
+    retry.addEventListener("click", () => askClaude(query, kind));
+    box.append(retry);
+    root.append(box);
+  }
+
+  function renderWelcome() {
+    search("Wolverine and Jubilee", "series");
+  }
+
+  function storeLink(k, q, best) {
+    const s = STORES[k];
+    const a = el("a", "store" + (best ? " best" : ""));
+    a.href = s.url(q); a.target = "_blank"; a.rel = "noopener";
+    const dot = el("span", "dot"); dot.style.background = s.color;
+    a.append(dot, document.createTextNode(s.name + " ↗"));
+    return a;
+  }
+
+  function renderPull() {
+    const list = $("pullList");
+    list.replaceChildren();
+    $("pullCount").textContent = pull.length ? "(" + pull.length + ")" : "";
+    $("clearPull").hidden = !pull.length;
+    if (!pull.length) {
+      list.append(el("div", "none", "Tap a comic to add it here. Each one gets links to the stores that suit it best."));
+      return;
+    }
+    pull.forEach(c => {
+      const it = el("div", "item");
+      const top = el("div", "top");
+      top.append(el("b", null, label(c)));
+      const x = el("button", "x", "×"); x.type = "button"; x.setAttribute("aria-label", "Remove " + label(c));
+      x.addEventListener("click", () => toggle(c));
+      top.append(x);
+      it.append(top);
+      const p = plan(c);
+      const tip = el("div", "tip"); tip.innerHTML = p.tip; // static strings from plan()
+      it.append(tip);
+      const stores = el("div", "stores");
+      const q = queryFor(c);
+      p.order.forEach((k, i) => stores.append(storeLink(k, q, i === 0)));
+      it.append(stores);
+      list.append(it);
+    });
+  }
+
+  function toggle(c) {
+    const k = keyOf(c);
+    const i = pull.findIndex(p => keyOf(p) === k);
+    if (i >= 0) pull.splice(i, 1); else pull.push(c);
+    savePull();
+    if (current) renderResults();
+    renderPull();
+  }
+
+  function setMode(m) {
+    mode = m;
+    $("modeSeries").setAttribute("aria-pressed", String(m === "series"));
+    $("modeChar").setAttribute("aria-pressed", String(m === "character"));
+    $("q").placeholder = m === "series" ? "e.g. Wolverine and Jubilee" : "e.g. Jubilee";
+  }
+
+  // ---------- Wire up ----------
+  $("modeSeries").addEventListener("click", () => setMode("series"));
+  $("modeChar").addEventListener("click", () => setMode("character"));
+  $("searchForm").addEventListener("submit", e => { e.preventDefault(); search($("q").value, mode); });
+  $("clearPull").addEventListener("click", () => { pull = []; savePull(); if (current) renderResults(); renderPull(); });
+  const quick = $("quick");
+  QUICK.forEach(([k, q]) => {
+    const b = el("button", "pill", q + (k === "character" ? " · character" : "")); b.type = "button";
+    b.addEventListener("click", () => search(q, k));
+    quick.append(b);
+  });
+
+  renderKeybar(false);
+  renderPull();
+  renderWelcome();
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>

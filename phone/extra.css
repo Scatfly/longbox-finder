@@ -1,0 +1,18 @@
+
+/* Phone version additions */
+.keypanel { background: var(--card); border: 2px solid var(--ink); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; }
+.keypanel .ktitle { font-weight: 800; }
+.keypanel p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.krow { display: flex; flex-wrap: wrap; gap: 8px; }
+.krow input { flex: 1 1 220px; min-width: 0; border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--paper); font-family: var(--mono); font-size: 13px; }
+.keystatus { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--muted); }
+.keystatus .on::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1f9d6b; margin-right: 6px; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--ink); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: 13px; }
+@media (max-width: 560px) {
+  .search { grid-template-columns: minmax(0, 1fr) auto; }
+  .modes { grid-column: 1 / -1; border-right: 0; border-bottom: 2px solid var(--ink); }
+  .modes button { flex: 1; padding: 10px; }
+  .go { border-left: 2px solid var(--ink); }
+}
+.related { margin-top: 22px; display: grid; gap: 8px; }
+.relchips { display: flex; flex-wrap: wrap; gap: 8px; }
