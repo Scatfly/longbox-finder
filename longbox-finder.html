@@ -262,6 +262,37 @@ button, input { font: inherit; color: inherit; }
   const trade = (series, year, writer, artist, note) => ({ series, issue: "", year, writer, artist, format: "trade", note });
   const one = (series, issue, year, writer, artist, note, key) => ({ series, issue: String(issue), year, writer, artist, format: "single", key: !!key, note });
 
+  // 1990s Venom limited series (issues and cover years checked on Comic Vine): [title, "issue@year,...", writer, artist, note]
+  const VENOM_90S = [
+    ["Venom: Funeral Pyre", "1@1993,2@1993,3@1993", "Carl Potts", "Tom Lyle", "Venom and the Punisher."],
+    ["Venom: The Madness", "1@1993,2@1993,3@1994", "Ann Nocenti", "Kelley Jones", ""],
+    ["Venom: The Enemy Within", "1@1994,2@1994,3@1994", "Bruce Jones", "Bob McLeod", ""],
+    ["Venom: The Mace", "1@1994,2@1994,3@1994", "Carl Potts", "Liam Sharp", ""],
+    ["Venom: Nights of Vengeance", "1@1994,2@1994,3@1994,4@1994", "Howard Mackie", "Ron Lim", ""],
+    ["Venom: Separation Anxiety", "1@1994,2@1995,3@1995,4@1995", "Howard Mackie", "Ron Randall", ""],
+    ["Venom: Carnage Unleashed", "1@1995,2@1995,3@1995,4@1995", "Larry Hama", "Andrew Wildman", "Venom vs. Carnage."],
+    ["Venom: Sinner Takes All", "1@1995,2@1995,3@1995,4@1995,5@1995", "Larry Hama", "Greg Luzniak", ""],
+    ["Venom: Along Came a Spider", "1@1996,2@1996,3@1996,4@1996", "Larry Hama", "Joe St. Pierre", "Venom and Ben Reilly's Spider-Man, with Hybrid."],
+    ["Venom: The Hunted", "1@1996,2@1996,3@1996", "Larry Hama", "Duncan Rouleau", ""],
+    ["Venom: The Hunger", "1@1996,2@1996,3@1996,4@1996", "Len Kaminski", "Ted Halsted", ""],
+    ["Venom: Tooth and Claw", "1@1996,2@1996,3@1997", "Larry Hama", "Joe St. Pierre", "Venom vs. Wolverine."],
+    ["Venom: Seed of Darkness", "-1@1997", "Len Kaminski", "James Fry", "Flashback one-shot."],
+    ["Venom: On Trial", "1@1997,2@1997,3@1997", "Larry Hama", "Josh Hood", ""],
+    ["Venom: License to Kill", "1@1997,2@1997,3@1997", "Larry Hama", "", ""],
+    ["Venom: Sign of the Boss", "1@1997,2@1997", "Ivan Velez Jr.", "Tom Derenick", ""],
+    ["Venom: The Finale", "1@1997,2@1997,3@1998", "Larry Hama", "", "The last of the '90s Venom minis."]
+  ].map(([name, list, writer, artist, note]) => {
+    const issues = list.split(",").map(s => s.split("@"));
+    const years = [...new Set(issues.map(i => i[1]))];
+    const comics = issues.map(([n, y], idx) => ({ series: name, issue: n, year: Number(y), writer, artist, format: "single", key: false, note: idx === 0 ? note : "" }));
+    if (name === "Venom: Along Came a Spider") comics.push(trade("Venom: Along Came a Spider...", 2018, "Larry Hama", "Joe St. Pierre", "Trade paperback collecting the series."));
+    return {
+      kind: "series", name, aliases: [name.replace(/^Venom: /, ""), name + " " + years[0]],
+      summary: years.join("-") + " Venom limited series, " + issues.length + " issue" + (issues.length === 1 ? "" : "s") + ". " + (note || ""),
+      tags: ["venom"], comics
+    };
+  });
+
   const CATALOG = [
     {
       kind: "series", name: "Wolverine and Jubilee", aliases: ["wolverine & jubilee", "wolverine jubilee"],
@@ -311,6 +342,7 @@ button, input { font: inherit; color: inherit; }
       comics: run("Venom: Lethal Protector", 1, 6, { year: 1993, writer: "David Michelinie" }, { 1: { key: true, artist: "Mark Bagley", note: "Venom's first solo comic. Red foil cover." } })
         .concat([trade("Venom: Lethal Protector", 1993, "David Michelinie", "Mark Bagley", "Collects all six issues.")])
     },
+    ...VENOM_90S,
     {
       kind: "series", name: "Maximum Carnage", aliases: ["max carnage", "maximum carnage 1993"],
       summary: "The 1993 14-part Spider-Man crossover. Spider-Man and Venom team up against Carnage. Listed in reading order.",
@@ -775,7 +807,15 @@ button, input { font: inherit; color: inherit; }
     const exact = pool.find(e => norm(e.name) === q || e.aliases.some(a => norm(a) === q));
     if (exact) return exact;
     const partial = pool.find(e => norm(e.name).startsWith(q) || e.aliases.some(a => norm(a).startsWith(q)));
-    return partial || null;
+    if (partial) return partial;
+    // Word match, so "along came a spider" or "spider venom along" still finds "Venom: Along Came a Spider".
+    const STOP = ["the", "of", "and", "a", "an", "vs"];
+    const words = q.split(" ").filter(w => w.length > 1 && !STOP.includes(w));
+    if (words.length < 2) return null;
+    return pool.find(e => {
+      const hay = new Set([e.name].concat(e.aliases).map(norm).join(" ").split(" "));
+      return words.every(w => hay.has(w));
+    }) || null;
   }
 
   function search(query, kind) {
