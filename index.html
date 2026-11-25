@@ -267,11 +267,14 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
 .stat b { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
 .stat span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
 .coll-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.coll-tools input[type="search"], .coll-tools select { border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--card); }
+.coll-tools input[type="search"], .coll-tools input[type="password"], .coll-tools select { border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--card); }
 .coll-tools input[type="search"] { flex: 1 1 220px; min-width: 0; }
 .coll-panel { background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; }
 .coll-panel h3 { margin: 0; font-size: 15px; }
 .coll-msg { font-size: 13px; color: var(--own); font-weight: 700; min-height: 1em; }
+.coll-msg.err { color: var(--magenta); }
+.sync-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.sync-steps a { color: inherit; font-weight: 700; }
 .progress-list { display: grid; gap: 8px; }
 .prog { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; font-size: 13.5px; }
 .prog .bar { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--chip); overflow: hidden; }
@@ -867,6 +870,7 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     "1.5 FR/G", "1.0 FR", "0.5 PR"];
 
   function saveColl() {
+    syncTrack("c", coll);
     try { localStorage.setItem(COLL_STORE, JSON.stringify(coll)); } catch (e) {}
     const n = $("collCount"); if (n) n.textContent = coll.length ? String(coll.length) : "";
   }
@@ -945,7 +949,7 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     root.replaceChildren();
     const head = el("div", "coll-head");
     head.append(el("h2", null, "My Collection"));
-    head.append(el("span", "meta", "Saved on this device. Download a backup to keep it safe or move it to another device."));
+    head.append(el("span", "meta", syncToken() ? "Syncing between your devices through your GitHub account." : "Saved on this device. Turn on sync below to share it between your phone and computer."));
     root.append(head);
 
     const spent = coll.reduce((s, x) => s + (parseFloat(x.paid) || 0), 0);
@@ -1017,7 +1021,7 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
       empty.append(el("div", null, "Your collection is empty. Search for a series or character and tap “I own this” on the comics you have."));
       const go = el("button", "btn primary", "Find comics"); go.type = "button"; go.addEventListener("click", () => showView("find"));
       empty.append(go);
-      root.append(empty, addP, bk);
+      root.append(empty, syncPanel(), addP, bk);
       return;
     }
 
@@ -1048,7 +1052,7 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     root.append(tools);
 
     const listBox = el("div", "collection");
-    root.append(listBox, addP, bk);
+    root.append(listBox, syncPanel(), addP, bk);
 
     function itemRow(x) {
       const k = keyOf(x);
@@ -1186,7 +1190,7 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
   let current = null;   // { title, summary, comics, source, run? }
   let pull = [];
   try { pull = JSON.parse(localStorage.getItem("longbox-pull") || "[]"); if (!Array.isArray(pull)) pull = []; } catch (e) { pull = []; }
-  const savePull = () => { try { localStorage.setItem("longbox-pull", JSON.stringify(pull)); } catch (e) {} };
+  const savePull = () => { syncTrack("p", pull); try { localStorage.setItem("longbox-pull", JSON.stringify(pull)); } catch (e) {} };
 
   const $ = id => document.getElementById(id);
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -1702,6 +1706,185 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     quick.append(b);
   });
 
+
+  // ---------- Sync (collection + pull list, through a private GitHub Gist) ----------
+  // Each item carries _t (last changed, ms). Removals leave a tombstone {key: time}.
+  // Merging keeps the newest version of each comic; a removal wins if it is newer.
+  const SYNC_TOKEN = "longbox-sync-token", SYNC_GIST = "longbox-sync-gist", SYNC_META = "longbox-sync-meta", SYNC_FILE = "longbox-sync.json";
+  const syncState = { busy: false, again: false, applying: false, timer: null, last: 0, msg: "", err: false };
+  function syncToken() { try { return localStorage.getItem(SYNC_TOKEN) || ""; } catch (e) { return ""; } }
+  function syncMeta() {
+    if (!syncMeta.m) {
+      let m = null;
+      try { m = JSON.parse(localStorage.getItem(SYNC_META) || "null"); } catch (e) {}
+      syncMeta.m = m && m.h ? m : { h: { c: {}, p: {} }, del: { c: {}, p: {} } };
+    }
+    return syncMeta.m;
+  }
+  function saveMeta() { try { localStorage.setItem(SYNC_META, JSON.stringify(syncMeta())); } catch (e) {} }
+  function hashOf(x) {
+    const t = JSON.stringify(Object.assign({}, x, { _t: undefined }));
+    let h = 5381; for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) | 0;
+    return h;
+  }
+  // Called on every save: stamp items that changed, tombstone items that disappeared.
+  function syncTrack(kind, list) {
+    const m = syncMeta(), prev = m.h[kind], next = {}, now = Date.now();
+    list.forEach(x => {
+      const k = keyOf(x), h = hashOf(x);
+      if (prev[k] !== h || !x._t) x._t = now;
+      next[k] = h;
+    });
+    Object.keys(prev).forEach(k => { if (!(k in next)) m.del[kind][k] = now; });
+    m.h[kind] = next;
+    saveMeta();
+    if (!syncState.applying && syncToken()) syncSoon();
+  }
+  function mergeLists(local, remote, delA, delB) {
+    const del = Object.assign({}, delA);
+    Object.entries(delB || {}).forEach(([k, t]) => { if (!(del[k] >= t)) del[k] = t; });
+    const byKey = new Map();
+    local.concat(remote || []).forEach(x => {
+      if (!x || !x.series) return;
+      const k = keyOf(x), have = byKey.get(k);
+      if (!have || (x._t || 0) > (have._t || 0)) byKey.set(k, x);
+    });
+    const items = [...byKey.entries()].filter(([k, x]) => !(del[k] >= (x._t || 0))).map(([, x]) => x);
+    return { items, del };
+  }
+  async function gh(path, opts) {
+    const r = await fetch("https://api.github.com" + path, Object.assign({}, opts, {
+      cache: "no-store",
+      headers: { "Authorization": "Bearer " + syncToken(), "Accept": "application/vnd.github+json", "Content-Type": "application/json" }
+    }));
+    if (r.status === 401) throw new Error("GitHub didn't accept that token. Check that it has the gist permission, or make a new one.");
+    if (r.status === 404) { const e = new Error("Not found on GitHub."); e.notFound = true; throw e; }
+    if (!r.ok) throw new Error("GitHub said " + r.status + ". Try again in a minute.");
+    return r.json();
+  }
+  async function readGist(g) {
+    const f = g.files && g.files[SYNC_FILE];
+    if (!f) return null;
+    let text = f.content;
+    if (f.truncated) text = await (await fetch(f.raw_url, { cache: "no-store" })).text();
+    try { return JSON.parse(text); } catch (e) { return null; }
+  }
+  async function findGist() {
+    let id = ""; try { id = localStorage.getItem(SYNC_GIST) || ""; } catch (e) {}
+    if (id) {
+      try { return await gh("/gists/" + id); } catch (e) { if (!e.notFound) throw e; }
+    }
+    for (let page = 1; page <= 5; page++) {
+      const list = await gh("/gists?per_page=100&page=" + page);
+      const hit = list.find(g => g.files && g.files[SYNC_FILE]);
+      if (hit) { try { localStorage.setItem(SYNC_GIST, hit.id); } catch (e) {} return gh("/gists/" + hit.id); }
+      if (list.length < 100) break;
+    }
+    return null;
+  }
+  function syncSoon(ms) {
+    clearTimeout(syncState.timer);
+    syncState.timer = setTimeout(syncNow, ms == null ? 1500 : ms);
+  }
+  async function syncNow() {
+    if (!syncToken()) return;
+    if (syncState.busy) { syncState.again = true; return; }
+    syncState.busy = true; syncState.err = false; syncState.msg = "Syncing…"; drawSyncStatus();
+    try {
+      const g = await findGist();
+      const remote = g ? await readGist(g) : null;
+      const m = syncMeta();
+      const rd = (remote && remote.removed) || {};
+      const c = mergeLists(coll, remote && remote.collection, m.del.c, rd.c);
+      const p = mergeLists(pull, remote && remote.pullList, m.del.p, rd.p);
+      const changedHere = JSON.stringify(c.items) !== JSON.stringify(coll) || JSON.stringify(p.items) !== JSON.stringify(pull);
+      // Apply locally without re-stamping anything.
+      coll = c.items; pull = p.items; m.del.c = c.del; m.del.p = p.del;
+      m.h.c = {}; coll.forEach(x => { m.h.c[keyOf(x)] = hashOf(x); });
+      m.h.p = {}; pull.forEach(x => { m.h.p[keyOf(x)] = hashOf(x); });
+      saveMeta();
+      syncState.applying = true; saveColl(); savePull(); syncState.applying = false;
+      const body = { app: "Longbox Finder", v: 1, saved: new Date().toISOString(), collection: coll, pullList: pull, removed: { c: c.del, p: p.del } };
+      const same = remote && JSON.stringify([remote.collection, remote.pullList, remote.removed]) === JSON.stringify([body.collection, body.pullList, body.removed]);
+      const content = JSON.stringify(body);
+      if (!g) {
+        const made = await gh("/gists", { method: "POST", body: JSON.stringify({ description: "Longbox Finder collection sync", public: false, files: { [SYNC_FILE]: { content } } }) });
+        try { localStorage.setItem(SYNC_GIST, made.id); } catch (e) {}
+      } else if (!same) {
+        await gh("/gists/" + g.id, { method: "PATCH", body: JSON.stringify({ files: { [SYNC_FILE]: { content } } }) });
+      }
+      syncState.last = Date.now(); syncState.msg = "";
+      if (changedHere) {
+        renderPull();
+        if (!$("collectionView").hidden) { if (collState.edit == null) renderCollection(); }
+        else if (current) renderResults();
+      }
+    } catch (e) {
+      syncState.err = true;
+      syncState.msg = !(e instanceof TypeError) ? (e.message || "Sync failed.")
+        : window.claude ? "Claude's page can't reach GitHub. Open the website version (scatfly.github.io/longbox-finder) on this computer to sync."
+        : "Couldn't reach GitHub. Check your internet connection.";
+    } finally {
+      syncState.applying = false; syncState.busy = false; drawSyncStatus();
+      if (syncState.again) { syncState.again = false; syncSoon(500); }
+    }
+  }
+  function syncStatusText() {
+    if (syncState.msg) return syncState.msg;
+    if (!syncState.last) return "Waiting to sync…";
+    const s = Math.round((Date.now() - syncState.last) / 1000);
+    return "✓ Synced " + (s < 10 ? "just now" : s < 60 ? s + " seconds ago" : Math.round(s / 60) + " min ago") + ".";
+  }
+  function drawSyncStatus() {
+    const n = $("syncStatus"); if (!n) return;
+    n.textContent = syncStatusText(); n.classList.toggle("err", syncState.err);
+  }
+  function syncPanel() {
+    const box = el("div", "coll-panel"); box.id = "syncPanel";
+    box.append(el("h3", null, "Sync between phone and computer"));
+    if (syncToken()) {
+      const st = el("div", "coll-msg"); st.id = "syncStatus"; st.setAttribute("role", "status");
+      const row = el("div", "coll-tools");
+      const now = el("button", "btn", "Sync now"); now.type = "button";
+      now.addEventListener("click", () => syncNow());
+      const off = el("button", "btn", "Turn off sync on this device"); off.type = "button";
+      off.addEventListener("click", () => {
+        try { localStorage.removeItem(SYNC_TOKEN); localStorage.removeItem(SYNC_GIST); } catch (e) {}
+        syncState.last = 0; syncState.msg = ""; collState.msg = "Sync is off on this device. Your comics stay here."; renderCollection();
+      });
+      row.append(now, off);
+      box.append(el("div", "tip", "Your collection and pull list are kept in a private gist on your GitHub account. Changes reach your other devices a few seconds after you open the app there."), row, st);
+      setTimeout(drawSyncStatus, 0);
+      return box;
+    }
+    box.append(el("div", "tip", "Keep the same collection on your phone and computer. It's stored in a private gist on your GitHub account, so only you can see it. Set it up once on each device, using the same token."));
+    const steps = el("ol", "sync-steps");
+    const li1 = el("li"); li1.append("Open ");
+    const a = el("a", null, "this GitHub page"); a.href = "https://github.com/settings/tokens/new?scopes=gist&description=Longbox%20Finder%20sync"; a.target = "_blank"; a.rel = "noopener";
+    li1.append(a, " (it's already filled in: the only box ticked is “gist”).");
+    const li2 = el("li", null, "Pick an expiration (“No expiration” is easiest), then press Generate token at the bottom.");
+    const li3 = el("li", null, "Copy the token (it starts with ghp_) and paste it below. Keep a copy in a note: you'll paste the same token on your other device.");
+    steps.append(li1, li2, li3);
+    const form = el("form", "coll-tools");
+    const inp = el("input"); inp.type = "password"; inp.id = "syncTokenInput"; inp.placeholder = "Paste your GitHub token"; inp.autocomplete = "off"; inp.setAttribute("aria-label", "GitHub token");
+    inp.style.flex = "1 1 220px"; inp.style.minWidth = "0";
+    const go = el("button", "btn primary", "Turn on sync"); go.type = "submit";
+    form.append(inp, go);
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const t = inp.value.trim();
+      if (!/^(ghp_|github_pat_|gho_)[A-Za-z0-9_]{20,}$/.test(t)) { collState.msg = "That doesn't look like a GitHub token. It should start with ghp_."; renderCollection(); return; }
+      try { localStorage.setItem(SYNC_TOKEN, t); } catch (err) {}
+      syncState.msg = "Connecting to GitHub…"; syncState.err = false; collState.msg = "";
+      renderCollection(); syncNow();
+    });
+    box.append(steps, form);
+    return box;
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && syncToken()) syncSoon(200); });
+  setInterval(() => { if (document.visibilityState === "visible" && syncToken()) syncNow(); }, 120000);
+  setInterval(drawSyncStatus, 15000);
+
   $("tabFind").addEventListener("click", () => showView("find"));
   $("tabColl").addEventListener("click", () => showView("collection"));
   saveColl();
@@ -1709,6 +1892,7 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
   renderKeybar(false);
   renderPull();
   renderWelcome();
+  if (syncToken()) syncSoon(300);
 })();
 </script>
 

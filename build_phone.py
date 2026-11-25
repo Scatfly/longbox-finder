@@ -42,7 +42,7 @@ page = swap(page, "    c.comics.forEach(x => grid.append(comicCard(x)));\n    ro
             "    c.comics.forEach(x => grid.append(comicCard(x)));\n    root.append(grid);\n    if (c.related && c.related.length) root.append(relatedBox(c));")
 page = swap(page, 'Results from "Ask Claude" are generated and may contain mistakes; double-check issue numbers before you buy.',
             'Series and character data from <a href="https://comicvine.gamespot.com/" target="_blank" rel="noopener">Comic Vine</a>.')
-page = swap(page, "  renderPull();\n  renderWelcome();\n})();", "  renderKeybar(false);\n  renderPull();\n  renderWelcome();\n})();")
+page = swap(page, "  renderPull();\n  renderWelcome();\n", "  renderKeybar(false);\n  renderPull();\n  renderWelcome();\n")
 
 assert 'use("sample")' not in page and 'use("mcp")' not in page, "Claude-only code left in phone build"
 
