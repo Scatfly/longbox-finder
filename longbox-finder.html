@@ -249,6 +249,19 @@ button, input { font: inherit; color: inherit; }
 
   // ---------- Built-in catalog ----------
   // kind: "series" (a run of issues) or "character" (notable comics featuring them)
+  // run(): a range of single issues. base = shared fields (year may be a function of the issue number); notes = {issueNumber: "note" or {fields}}
+  const run = (series, from, to, base, notes) => {
+    const out = [];
+    for (let n = from; n <= to; n++) {
+      const extra = notes && notes[n] ? (typeof notes[n] === "string" ? { note: notes[n] } : notes[n]) : {};
+      out.push(Object.assign({ series, issue: String(n), format: "single", note: "", writer: "", artist: "" }, base,
+        typeof base.year === "function" ? { year: base.year(n) } : {}, extra));
+    }
+    return out;
+  };
+  const trade = (series, year, writer, artist, note) => ({ series, issue: "", year, writer, artist, format: "trade", note });
+  const one = (series, issue, year, writer, artist, note, key) => ({ series, issue: String(issue), year, writer, artist, format: "single", key: !!key, note });
+
   const CATALOG = [
     {
       kind: "series", name: "Wolverine and Jubilee", aliases: ["wolverine & jubilee", "wolverine jubilee"],
@@ -282,6 +295,104 @@ button, input { font: inherit; color: inherit; }
       summary: "Robert Kirkman's six-issue series. Jubilee moves to Los Angeles and tries high school as a former mutant-in-training.",
       tags: ["jubilee"],
       comics: [1, 2, 3, 4, 5, 6].map(n => ({ series: "Jubilee", issue: String(n), year: 2004, writer: "Robert Kirkman", artist: "Derec Aucoin", format: "single", note: "" }))
+        .concat([trade("Jubilee by Robert Kirkman", 2011, "Robert Kirkman", "Derec Aucoin", "Collects all six issues.")])
+    },
+    {
+      kind: "series", name: "Generation X (2017)", aliases: ["generation x 2017", "gen x 2017"],
+      summary: "Christina Strain's Generation X, with Jubilee teaching a new class of young mutants. Issues #1-9, then legacy numbering #85-87.",
+      tags: ["jubilee", "generation x"],
+      comics: run("Generation X", 1, 9, { year: 2017, writer: "Christina Strain", artist: "Amilcar Pinna" }, { 1: "Jubilee leads a new Generation X." })
+        .concat(run("Generation X", 85, 87, { year: 2018, writer: "Christina Strain" }, { 87: "Series finale." }))
+    },
+    {
+      kind: "series", name: "Venom: Lethal Protector", aliases: ["lethal protector", "venom lethal protector 1993"],
+      summary: "1993 six-issue limited series. Venom's first solo series, moving Eddie Brock to San Francisco as an antihero.",
+      tags: ["venom"],
+      comics: run("Venom: Lethal Protector", 1, 6, { year: 1993, writer: "David Michelinie" }, { 1: { key: true, artist: "Mark Bagley", note: "Venom's first solo comic. Red foil cover." } })
+        .concat([trade("Venom: Lethal Protector", 1993, "David Michelinie", "Mark Bagley", "Collects all six issues.")])
+    },
+    {
+      kind: "series", name: "Maximum Carnage", aliases: ["max carnage", "maximum carnage 1993"],
+      summary: "The 1993 14-part Spider-Man crossover. Spider-Man and Venom team up against Carnage. Listed in reading order.",
+      tags: ["venom", "carnage", "spider-man"],
+      comics: [
+        one("Spider-Man Unlimited", 1, 1993, "Tom DeFalco", "Ron Lim", "Part 1. Carnage escapes Ravencroft."),
+        one("Web of Spider-Man", 101, 1993, "Terry Kavanagh", "", "Part 2."),
+        one("Amazing Spider-Man", 378, 1993, "David Michelinie", "Mark Bagley", "Part 3. Venom joins the fight."),
+        one("Spider-Man", 35, 1993, "Tom DeFalco", "", "Part 4."),
+        one("Spectacular Spider-Man", 201, 1993, "J.M. DeMatteis", "Sal Buscema", "Part 5."),
+        one("Web of Spider-Man", 102, 1993, "Terry Kavanagh", "", "Part 6."),
+        one("Amazing Spider-Man", 379, 1993, "David Michelinie", "Mark Bagley", "Part 7."),
+        one("Spider-Man", 36, 1993, "Tom DeFalco", "", "Part 8."),
+        one("Spectacular Spider-Man", 202, 1993, "J.M. DeMatteis", "Sal Buscema", "Part 9."),
+        one("Web of Spider-Man", 103, 1993, "Terry Kavanagh", "", "Part 10."),
+        one("Amazing Spider-Man", 380, 1993, "David Michelinie", "Mark Bagley", "Part 11."),
+        one("Spider-Man", 37, 1993, "Tom DeFalco", "", "Part 12."),
+        one("Spectacular Spider-Man", 203, 1993, "J.M. DeMatteis", "Sal Buscema", "Part 13."),
+        one("Spider-Man Unlimited", 2, 1993, "Tom DeFalco", "Ron Lim", "Part 14. Finale."),
+        trade("Spider-Man: Maximum Carnage", 1993, "Various", "", "Collects all 14 parts.")
+      ]
+    },
+    {
+      kind: "series", name: "Venom (2003)", aliases: ["venom 2003", "venom daniel way"],
+      summary: "Daniel Way's 18-issue Venom series, focused on the symbiote and its clones.",
+      tags: ["venom"],
+      comics: run("Venom", 1, 18, { year: 2003, writer: "Daniel Way" }, { 1: { artist: "Francisco Herrera", note: "First issue." }, 18: "Final issue." })
+    },
+    {
+      kind: "series", name: "Venomverse", aliases: ["venomverse 2017"],
+      summary: "2017 five-issue event. Venoms from across the multiverse band together against the Poisons.",
+      tags: ["venom"],
+      comics: run("Venomverse", 1, 5, { year: 2017, writer: "Cullen Bunn", artist: "Iban Coello" }, { 1: "First appearance of the Poisons." })
+    },
+    {
+      kind: "series", name: "Venom: First Host", aliases: ["first host"],
+      summary: "2018 five-issue limited series. The symbiote's past catches up with Eddie Brock.",
+      tags: ["venom"],
+      comics: run("Venom: First Host", 1, 5, { year: 2018, writer: "Mike Costa", artist: "Mark Bagley" })
+    },
+    {
+      kind: "series", name: "Venom (2018)", aliases: ["venom 2018", "venom donny cates", "venom cates"],
+      summary: "Donny Cates and Ryan Stegman's run, which introduced Knull, the god of the symbiotes. Ends at #35, Venom's 200th issue. Years shown are the series' start year.",
+      tags: ["venom", "knull"],
+      comics: run("Venom", 1, 35, { year: 2018, writer: "Donny Cates" }, {
+        1: { artist: "Ryan Stegman", note: "First issue of the Cates run." },
+        3: { key: true, artist: "Ryan Stegman", note: "First full appearance of Knull." },
+        35: { note: "Legacy #200. Final issue of the Cates run." }
+      }).concat([trade("Venom by Donny Cates Vol. 1: Rex", 2018, "Donny Cates", "Ryan Stegman", "Collects #1-6.")])
+    },
+    {
+      kind: "series", name: "Absolute Carnage", aliases: ["absolute carnage 2019"],
+      summary: "2019 five-issue event by Donny Cates and Ryan Stegman. Carnage hunts everyone who ever wore a symbiote.",
+      tags: ["venom", "carnage"],
+      comics: run("Absolute Carnage", 1, 5, { year: 2019, writer: "Donny Cates", artist: "Ryan Stegman" })
+    },
+    {
+      kind: "series", name: "King in Black", aliases: ["king in black 2020"],
+      summary: "Five-issue event by Donny Cates and Ryan Stegman. Knull invades Earth.",
+      tags: ["venom", "knull"],
+      comics: run("King in Black", 1, 5, { year: n => n === 1 ? 2020 : 2021, writer: "Donny Cates", artist: "Ryan Stegman" })
+    },
+    {
+      kind: "series", name: "Venom War", aliases: ["venom war 2024"],
+      summary: "2024 five-issue event by Al Ewing. Eddie Brock and his son Dylan fight over the Venom symbiote.",
+      tags: ["venom"],
+      comics: run("Venom War", 1, 5, { year: 2024, writer: "Al Ewing", artist: "Iban Coello" })
+    },
+    {
+      kind: "series", name: "All-New Venom", aliases: ["all new venom", "all-new venom 2025"],
+      summary: "2025 ten-issue series by Al Ewing. A mystery host takes over the Venom symbiote.",
+      tags: ["venom"],
+      comics: run("All-New Venom", 1, 10, { year: 2025, writer: "Al Ewing" }, { 1: "Who is the new Venom?" })
+    },
+    {
+      kind: "series", name: "Venom (2025)", aliases: ["venom", "venom 2025", "venom mary jane", "mary jane venom"],
+      summary: "Al Ewing's current run with Mary Jane as Venom. It continues from All-New Venom and uses legacy numbering from #250.",
+      tags: ["venom", "mary jane"],
+      comics: run("Venom", 250, 262, { year: n => n === 250 ? 2025 : 2026, writer: "Al Ewing", artist: "Carlos Gómez" }, {
+        250: { key: true, note: "Legacy #250. Mary Jane as Venom." },
+        255: "Death Spiral, part 3.", 256: "Death Spiral, part 6.", 257: "Death Spiral, part 8."
+      })
     },
     {
       kind: "series", name: "Deadpool: The Circle Chase", aliases: ["circle chase", "deadpool circle chase"],
@@ -305,15 +416,60 @@ button, input { font: inherit; color: inherit; }
     },
     {
       kind: "character", name: "Jubilee", aliases: ["jubilation lee"],
-      summary: "Jubilation Lee, the mall-rat mutant who throws fireworks. Here are her key appearances and series.",
+      summary: "Jubilation Lee, the mall-rat mutant who throws fireworks. Her key appearances and series, oldest first.",
       tags: ["jubilee"],
       comics: [
-        { series: "Uncanny X-Men", issue: "244", year: 1989, writer: "Chris Claremont", artist: "Marc Silvestri", format: "single", key: true, note: "First appearance of Jubilee." },
-        { series: "Generation X", issue: "1", year: 1994, writer: "Scott Lobdell", artist: "Chris Bachalo", format: "single", note: "Jubilee joins the new team at the Massachusetts Academy." },
-        { series: "Jubilee", issue: "1", year: 2004, writer: "Robert Kirkman", artist: "Derec Aucoin", format: "single", note: "First issue of her solo series." },
-        { series: "Wolverine and Jubilee", issue: "1", year: 2011, writer: "Kathryn Immonen", artist: "Phil Noto", format: "single", note: "Start of the 4-issue vampire-era mini." },
-        { series: "X-Men", issue: "1", year: 2013, writer: "Brian Wood", artist: "Olivier Coipel", format: "single", note: "Jubilee returns with a baby, kicking off the all-women X-Men team." },
-        { series: "Wolverine and Jubilee: Curse of the Mutants", issue: "", year: 2011, writer: "Kathryn Immonen", artist: "Phil Noto", format: "trade", note: "The 2011 mini, collected." }
+        one("Uncanny X-Men", 244, 1989, "Chris Claremont", "Marc Silvestri", "First appearance of Jubilee.", true),
+        one("Uncanny X-Men", 251, 1989, "Chris Claremont", "Marc Silvestri", "Jubilee frees Wolverine after the Reavers crucify him."),
+        one("X-Men", 1, 1991, "Chris Claremont", "Jim Lee", "Jubilee on the Blue Team. Best-selling comic ever."),
+        one("Generation X", 1, 1994, "Scott Lobdell", "Chris Bachalo", "Jubilee joins the new team at the Massachusetts Academy."),
+        one("Generation X", 75, 2001, "", "", "Final issue of the original Generation X."),
+        one("Jubilee", 1, 2004, "Robert Kirkman", "Derec Aucoin", "First issue of her solo series."),
+        one("X-Men", 1, 2010, "Victor Gischler", "Paco Medina", "Curse of the Mutants. Jubilee is turned into a vampire."),
+        one("Wolverine and Jubilee", 1, 2011, "Kathryn Immonen", "Phil Noto", "Start of the 4-issue vampire-era mini."),
+        one("X-Men", 1, 2013, "Brian Wood", "Olivier Coipel", "Jubilee returns with a baby, kicking off the all-women X-Men team."),
+        one("Generation X", 1, 2017, "Christina Strain", "Amilcar Pinna", "Jubilee becomes a teacher."),
+        one("Excalibur", 1, 2019, "Tini Howard", "Marcus To", "Jubilee joins the Krakoa-era Excalibur."),
+        one("True Believers: X-Men: Jubilee", 1, 2019, "Chris Claremont", "Marc Silvestri", "$1 reprint of her first appearance."),
+        one("X-Men: Blood Hunt - Jubilee", 1, 2024, "Preeti Chhibber", "", "One-shot. Jubilee's vampire past returns."),
+        one("Jubilee: Deadly Reunion", 1, 2026, "", "", "2026 one-shot."),
+        one("Tomb of Apocalypse", 1, 2026, "", "", "Jubilee with Wolverine, Shatterstar and Rictor. 4 issues."),
+        trade("Wolverine and Jubilee: Curse of the Mutants", 2011, "Kathryn Immonen", "Phil Noto", "The 2011 mini, collected."),
+        trade("Jubilee by Robert Kirkman", 2011, "Robert Kirkman", "Derec Aucoin", "Her 2004 solo series, collected.")
+      ]
+    },
+    {
+      kind: "character", name: "Venom", aliases: ["eddie brock", "the symbiote", "symbiote"],
+      summary: "The alien symbiote and its hosts: Eddie Brock, Flash Thompson, Dylan Brock and Mary Jane. Key issues and series, oldest first.",
+      tags: ["venom"],
+      comics: [
+        one("Marvel Super Heroes Secret Wars", 8, 1984, "Jim Shooter", "Mike Zeck", "First appearance of the symbiote (Spider-Man's black costume).", true),
+        one("Amazing Spider-Man", 252, 1984, "Roger Stern", "Ron Frenz", "Spider-Man returns home in the black costume.", true),
+        one("Web of Spider-Man", 1, 1985, "Louise Simonson", "Greg LaRocque", "The symbiote comes back for Peter."),
+        one("Amazing Spider-Man", 298, 1988, "David Michelinie", "Todd McFarlane", "First appearance of Eddie Brock (cameo).", true),
+        one("Amazing Spider-Man", 299, 1988, "David Michelinie", "Todd McFarlane", "First Venom cameo.", true),
+        one("Amazing Spider-Man", 300, 1988, "David Michelinie", "Todd McFarlane", "First full appearance of Venom.", true),
+        one("Amazing Spider-Man", 316, 1989, "David Michelinie", "Todd McFarlane", "Classic Venom cover."),
+        one("Amazing Spider-Man", 361, 1992, "David Michelinie", "Mark Bagley", "First full appearance of Carnage.", true),
+        one("Amazing Spider-Man", 375, 1993, "David Michelinie", "Mark Bagley", "30th anniversary issue. Spider-Man vs. Venom."),
+        one("Venom: Lethal Protector", 1, 1993, "David Michelinie", "Mark Bagley", "Venom's first solo series.", true),
+        one("Venom", 1, 2003, "Daniel Way", "Francisco Herrera", "First ongoing Venom series."),
+        one("Amazing Spider-Man", 654, 2011, "Dan Slott", "", "Flash Thompson becomes Agent Venom.", true),
+        one("Venom", 1, 2011, "Rick Remender", "Tony Moore", "Flash Thompson's Venom series."),
+        one("Venomverse", 1, 2017, "Cullen Bunn", "Iban Coello", "Venoms from across the multiverse."),
+        one("Venom", 1, 2018, "Donny Cates", "Ryan Stegman", "Start of the Donny Cates run."),
+        one("Venom", 3, 2018, "Donny Cates", "Ryan Stegman", "First full appearance of Knull.", true),
+        one("Absolute Carnage", 1, 2019, "Donny Cates", "Ryan Stegman", "Carnage hunts every symbiote host."),
+        one("King in Black", 1, 2020, "Donny Cates", "Ryan Stegman", "Knull invades Earth."),
+        one("Venom", 35, 2021, "Donny Cates", "Ryan Stegman", "Venom's 200th issue (legacy #200)."),
+        one("Venom", 1, 2021, "Al Ewing & Ram V", "Bryan Hitch", "Dylan Brock becomes Venom."),
+        one("Venom War", 1, 2024, "Al Ewing", "Iban Coello", "Eddie vs. Dylan for the symbiote."),
+        one("All-New Venom", 1, 2025, "Al Ewing", "", "A mystery host becomes Venom."),
+        one("Venom", 250, 2025, "Al Ewing", "Carlos Gómez", "Legacy #250. Mary Jane as Venom.", true),
+        one("Venom", 1, 2026, "", "", "New #1 from December 2026."),
+        trade("Venom: Lethal Protector", 1993, "David Michelinie", "Mark Bagley", "His first solo series, collected."),
+        trade("Venom by Donny Cates Vol. 1: Rex", 2018, "Donny Cates", "Ryan Stegman", "Start of the Knull saga."),
+        trade("Spider-Man: Maximum Carnage", 1993, "Various", "", "The 14-part crossover, collected.")
       ]
     },
     {
@@ -354,8 +510,9 @@ button, input { font: inherit; color: inherit; }
   ];
 
   const QUICK = [
-    ["series", "Wolverine and Jubilee"], ["character", "Jubilee"], ["series", "Old Man Logan"],
-    ["character", "Deadpool"], ["series", "Kraven's Last Hunt"], ["character", "Storm"]
+    ["series", "Wolverine and Jubilee"], ["character", "Jubilee"], ["character", "Venom"],
+    ["series", "Maximum Carnage"], ["series", "Venom War"], ["series", "Old Man Logan"],
+    ["character", "Deadpool"], ["character", "Storm"]
   ];
 
   // ---------- Stores ----------
@@ -699,7 +856,7 @@ button, input { font: inherit; color: inherit; }
     allBtn.type = "button";
     allBtn.addEventListener("click", () => { c.comics.forEach(x => { if (!pull.some(p => keyOf(p) === keyOf(x))) pull.push(x); }); savePull(); renderResults(); renderPull(); });
     tb.append(allBtn);
-    if (c.kind === "series" && singles > 1) {
+    if (c.kind === "series" && singles > 1 && new Set(c.comics.filter(x => x.format === "single").map(x => x.series)).size === 1) {
       const first = c.comics.find(x => x.format === "single");
       const nums = c.comics.filter(x => x.format === "single" && x.series === first.series).map(x => x.issue);
       const lotQ = first.series + " " + nums[0] + "-" + nums[nums.length - 1] + " lot";
