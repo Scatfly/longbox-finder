@@ -36,6 +36,8 @@ img { max-width: 100%; }
   --accent: #d6246e;
   --accent-ink: #ffffff;
   --chip: #eef0f4;
+  --own: #1f8a5c;
+  --own-ink: #ffffff;
   --shadow: 3px 3px 0 var(--ink);
   --display: "Bangers", "Impact", "Arial Black", sans-serif;
   --body: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -45,13 +47,13 @@ img { max-width: 100%; }
   :root:not([data-theme="light"]) {
     --paper: #12141a; --card: #1b1e26; --ink: #eef0f5; --muted: #a2a8b6; --line: #2e333e;
     --cyan: #3cc2ef; --magenta: #ff5c9a; --yellow: #ffd84f; --accent: #ff5c9a; --accent-ink: #12141a;
-    --chip: #252a34; --shadow: 3px 3px 0 #000; color-scheme: dark;
+    --chip: #252a34; --own: #3ccf8e; --own-ink: #0f1a14; --shadow: 3px 3px 0 #000; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --paper: #12141a; --card: #1b1e26; --ink: #eef0f5; --muted: #a2a8b6; --line: #2e333e;
   --cyan: #3cc2ef; --magenta: #ff5c9a; --yellow: #ffd84f; --accent: #ff5c9a; --accent-ink: #12141a;
-  --chip: #252a34; --shadow: 3px 3px 0 #000; color-scheme: dark;
+  --chip: #252a34; --own: #3ccf8e; --own-ink: #0f1a14; --shadow: 3px 3px 0 #000; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body {
@@ -238,6 +240,62 @@ button, input { font: inherit; color: inherit; }
 .apps-links { flex-basis: 100%; display: flex; gap: 16px; margin-top: 4px; }
 @media (max-width: 560px) { .apps-chips { padding-left: 14px; } .apps-toggle { gap: 8px; padding-inline: 12px; } }
 
+/* Tabs + collection */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 2px solid var(--ink); margin-bottom: 20px; }
+.tabs button { border: 2px solid var(--ink); border-bottom: 0; border-radius: 10px 10px 0 0; background: var(--card); padding: 9px 16px; font-weight: 800; cursor: pointer; color: var(--muted); white-space: nowrap; margin-bottom: -2px; }
+.tabs button[aria-selected="true"] { background: var(--yellow); color: #15171c; }
+.tabs .count { font-family: var(--mono); font-size: 12px; margin-left: 4px; }
+body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-coll .tag { display: none; }
+.cardwrap { display: grid; grid-template-rows: 1fr auto; min-width: 0; }
+.cardwrap .comic { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.cardwrap .comic:hover { transform: none; }
+.ownbtn { border: 2px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; background: var(--card); padding: 8px; font-weight: 700; font-size: 13px; cursor: pointer; color: var(--muted); }
+.ownbtn:hover { color: var(--ink); }
+.ownbtn[aria-pressed="true"] { background: var(--own); border-color: var(--own); color: var(--own-ink); }
+.ichip.own { border-color: var(--own); box-shadow: inset 0 -3px 0 var(--own); }
+.tapmode { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--card); padding: 5px 10px; font-weight: 700; font-size: 12.5px; cursor: pointer; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.pullgot { justify-self: start; font-size: 12px; padding: 4px 10px; }
+.collection { display: grid; gap: 18px; }
+.coll-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px; }
+.coll-head h2 { font-family: var(--display); font-weight: 400; font-size: 36px; letter-spacing: 1px; margin: 0; line-height: 1; }
+.coll-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .stat b { font-size: 24px; } .stat { padding: 8px 10px; } }
+.stat { background: var(--card); border: 2px solid var(--ink); border-radius: 10px; padding: 10px 14px; display: grid; }
+.stat b { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
+.coll-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.coll-tools input[type="search"], .coll-tools select { border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--card); }
+.coll-tools input[type="search"] { flex: 1 1 220px; min-width: 0; }
+.coll-panel { background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; }
+.coll-panel h3 { margin: 0; font-size: 15px; }
+.coll-msg { font-size: 13px; color: var(--own); font-weight: 700; min-height: 1em; }
+.progress-list { display: grid; gap: 8px; }
+.prog { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; font-size: 13.5px; }
+.prog .bar { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--chip); overflow: hidden; }
+.prog .bar i { display: block; height: 100%; background: var(--own); }
+.prog .pc { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.coll-group { background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; }
+.coll-group > h3 { margin: 0; padding: 10px 14px; font-size: 15px; background: var(--chip); display: flex; justify-content: space-between; gap: 10px; }
+.coll-group > h3 span { color: var(--muted); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+.citem { border-top: 1px solid var(--line); padding: 10px 14px; display: grid; gap: 8px; }
+.citem:first-of-type { border-top: 0; }
+.citem .line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.citem .line b { font-size: 14px; margin-right: auto; }
+.gchip { font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: var(--chip); color: var(--muted); font-family: var(--mono); }
+.gchip.slab { background: var(--cyan); color: #fff; }
+.paid { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.editor { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; background: var(--paper); border-radius: 8px; padding: 12px; }
+.editor label, .manual-add label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.editor input, .editor select, .editor textarea, .manual-add input, .manual-add select { border: 1.5px solid var(--line); border-radius: 6px; padding: 7px 9px; background: var(--card); min-width: 0; }
+.editor .wide { grid-column: 1 / -1; }
+.editor .check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); }
+.editor .acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+.manual-add { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end; }
+.btn.danger { border-color: #c0392b; color: #c0392b; }
+
 .fallback { border: 2px dashed var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 10px; }
 .fallback h3 { margin: 0; font-size: 18px; }
 .fallback p { margin: 0; color: var(--muted); max-width: 65ch; }
@@ -296,7 +354,12 @@ button, input { font: inherit; color: inherit; }
     </div>
   </header>
 
-  <main class="main">
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" id="tabFind" aria-selected="true">Find comics</button>
+    <button type="button" role="tab" id="tabColl" aria-selected="false">My collection<span class="count" id="collCount"></span></button>
+  </nav>
+
+  <main class="main" id="findView">
     <section aria-live="polite">
       <div id="results"></div>
     </section>
@@ -313,6 +376,8 @@ button, input { font: inherit; color: inherit; }
       </div>
     </aside>
   </main>
+
+  <section class="collection" id="collectionView" aria-label="My collection" hidden></section>
 
   <p class="foot">Links open a search on each store's own site, so you always see current listings and prices there. Not affiliated with Marvel or any store. Series and character data from <a href="https://comicvine.gamespot.com/" target="_blank" rel="noopener">Comic Vine</a>.</p>
 </div>
@@ -708,7 +773,17 @@ button, input { font: inherit; color: inherit; }
     head.append(el("h3", null, "Every " + ch.name + " comic"));
     head.append(el("span", "meta", ch.volumes.length + " series · " + total.toLocaleString() + " issues · US Marvel comics listed on Comic Vine"));
     box.append(head);
-    box.append(el("p", "apps-tip", "Tap a series to see the issues, then tap an issue to add it to your pull list."));
+    box.append(el("p", "apps-tip", "Tap a series to see the issues, then tap an issue to add it. Green-underlined issues are already in your collection."));
+    const tm = el("div", "tapmode");
+    tm.append(document.createTextNode("Tapping an issue adds it to:"));
+    const seg = el("div", "seg");
+    [["pull", "Pull list"], ["own", "My collection"]].forEach(([v, t]) => {
+      const b = el("button", null, t); b.type = "button"; b.setAttribute("aria-pressed", String(tapMode === v));
+      b.addEventListener("click", () => { tapMode = v; seg.querySelectorAll("button").forEach((x, i) => x.setAttribute("aria-pressed", String((i === 0 ? "pull" : "own") === v))); list.querySelectorAll(".ichip").forEach(r => r.dispatchEvent(new CustomEvent("refresh"))); });
+      seg.append(b);
+    });
+    tm.append(seg);
+    box.append(tm);
     const controls = el("div", "apps-controls");
     const filter = el("input"); filter.type = "search"; filter.id = "appsFilter-" + key; filter.value = st.filter;
     filter.placeholder = "Filter series, e.g. Generation X or 1994"; filter.setAttribute("aria-label", "Filter series");
@@ -723,19 +798,19 @@ button, input { font: inherit; color: inherit; }
     function chips(v) {
       const wrap = el("div", "apps-chips");
       volComics(v).forEach((cm, idx) => {
-        const on = pull.some(p => keyOf(p) === keyOf(cm));
         const b = el("button", "ichip");
         b.type = "button";
-        b.setAttribute("aria-pressed", String(on));
         b.append(el("b", null, "#" + cm.issue), el("small", null, shortDate(v.i[idx][1])));
         if (v.i[idx][2]) b.title = v.i[idx][2];
-        b.setAttribute("aria-label", (on ? "Remove " : "Add ") + label(cm) + " to pull list");
-        b.addEventListener("click", () => {
-          toggleQuiet(cm);
-          const now = pull.some(p => keyOf(p) === keyOf(cm));
-          b.setAttribute("aria-pressed", String(now));
-          b.setAttribute("aria-label", (now ? "Remove " : "Add ") + label(cm) + " to pull list");
-        });
+        const sync = () => {
+          const inPull = pull.some(p => keyOf(p) === keyOf(cm)), mine = owned(cm);
+          b.classList.toggle("own", mine);
+          b.setAttribute("aria-pressed", String(tapMode === "own" ? mine : inPull));
+          b.setAttribute("aria-label", tapMode === "own" ? (mine ? "Remove " : "Add ") + label(cm) + " to my collection" : (inPull ? "Remove " : "Add ") + label(cm) + " to pull list");
+        };
+        sync();
+        b.addEventListener("refresh", sync);
+        b.addEventListener("click", () => { if (tapMode === "own") toggleOwned(cm); else toggleQuiet(cm); sync(); });
         wrap.append(b);
       });
       const links = el("div", "apps-links");
@@ -779,6 +854,291 @@ button, input { font: inherit; color: inherit; }
     sort.addEventListener("change", () => { st.sort = sort.value; draw(); });
     draw();
     return box;
+  }
+
+  // ---------- My collection (saved on this device; backup/restore as a file) ----------
+  const COLL_STORE = "longbox-collection";
+  let coll = [];
+  try { coll = JSON.parse(localStorage.getItem(COLL_STORE) || "[]"); if (!Array.isArray(coll)) coll = []; } catch (e) { coll = []; }
+  let tapMode = "pull";   // what tapping an issue tile does in "Every comic": "pull" or "own"
+  const collState = { q: "", sort: "series", edit: null, msg: "" };
+  const GRADES = ["", "10.0 Gem Mint", "9.9 Mint", "9.8 NM/M", "9.6 NM+", "9.4 NM", "9.2 NM-", "9.0 VF/NM", "8.5 VF+", "8.0 VF", "7.5 VF-",
+    "7.0 FN/VF", "6.5 FN+", "6.0 FN", "5.5 FN-", "5.0 VG/FN", "4.5 VG+", "4.0 VG", "3.5 VG-", "3.0 G/VG", "2.5 G+", "2.0 G", "1.8 G-",
+    "1.5 FR/G", "1.0 FR", "0.5 PR"];
+
+  function saveColl() {
+    try { localStorage.setItem(COLL_STORE, JSON.stringify(coll)); } catch (e) {}
+    const n = $("collCount"); if (n) n.textContent = coll.length ? String(coll.length) : "";
+  }
+  const owned = c => { const k = keyOf(c); return coll.some(x => keyOf(x) === k); };
+  function addOwned(c, extra) {
+    if (owned(c)) return;
+    coll.push(Object.assign({
+      series: c.series, issue: c.issue || "", year: c.year || "", format: c.format || "single", key: !!c.key,
+      writer: c.writer || "", artist: c.artist || "", added: new Date().toISOString().slice(0, 10),
+      grade: "", graded: false, paid: "", notes: ""
+    }, extra || {}));
+    saveColl();
+  }
+  function removeOwned(c) { const k = keyOf(c); coll = coll.filter(x => keyOf(x) !== k); saveColl(); }
+  function toggleOwned(c) { owned(c) ? removeOwned(c) : addOwned(c); }
+  const money = n => "$" + (Number(n) || 0).toFixed(2);
+  const issueNum = s => { const m = String(s || "").match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : 1e9; };
+
+  async function saveFile(filename, text, type) {
+    const cl = window.claude;
+    if (cl && cl.use) {
+      try {
+        const dl = await cl.use("downloads");
+        if (dl) { await dl.save({ filename, data: text }); return "Saved " + filename + "."; }
+      } catch (e) { return e && e.code === "not_granted" ? "The download was declined." : "Couldn't save the file here. Use Copy backup instead."; }
+    }
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type }));
+      const a = document.createElement("a"); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      return "Downloaded " + filename + ".";
+    } catch (e) { return "Couldn't download here. Use Copy backup instead."; }
+  }
+  const backupText = () => JSON.stringify({ app: "Longbox Finder", saved: new Date().toISOString(), collection: coll, pullList: pull }, null, 1);
+  function csvText() {
+    const cols = ["series", "issue", "year", "format", "key", "grade", "graded", "paid", "added", "notes"];
+    const esc = v => { const s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    return [cols.join(",")].concat(coll.map(x => cols.map(c => esc(x[c])).join(","))).join("\n");
+  }
+  function restore(text) {
+    let d;
+    try { d = JSON.parse(text); } catch (e) { return "That file isn't a Longbox Finder backup."; }
+    const items = Array.isArray(d) ? d : d && Array.isArray(d.collection) ? d.collection : null;
+    if (!items) return "That file isn't a Longbox Finder backup.";
+    let added = 0;
+    items.forEach(x => { if (x && x.series && !owned(x)) { coll.push(Object.assign({ grade: "", graded: false, paid: "", notes: "", added: "" }, x)); added++; } });
+    if (d && Array.isArray(d.pullList)) d.pullList.forEach(x => { if (x && x.series && !pull.some(p => keyOf(p) === keyOf(x))) pull.push(x); });
+    saveColl(); savePull(); renderPull();
+    return "Restored " + added + " comic" + (added === 1 ? "" : "s") + " (duplicates skipped).";
+  }
+
+  // Series completion: built-in series and Venom/Jubilee-titled series from the data.
+  function progressRows() {
+    const rows = [], seen = new Set();
+    CATALOG.filter(e => e.kind === "series").forEach(e => {
+      const singles = e.comics.filter(c => c.format === "single");
+      if (!singles.length) return;
+      const have = singles.filter(owned).length;
+      if (have) { rows.push({ name: e.name, have, total: singles.length }); seen.add(norm(e.name)); }
+    });
+    if (DATA) {
+      const vs = new Set();
+      Object.values(DATA.characters).forEach(c => c.volumes.forEach(v => {
+        if (!/venom|jubilee/i.test(v.n) || vs.has(v.cv) || v.i.length < 2) return;
+        vs.add(v.cv);
+        const list = volComics(v), have = list.filter(owned).length;
+        const nm = v.n + " (" + v.y + ")";
+        if (have && !seen.has(norm(nm)) && !seen.has(norm(v.n))) rows.push({ name: nm, have, total: list.length });
+      }));
+    }
+    return rows.sort((a, b) => b.have / b.total - a.have / a.total || a.name.localeCompare(b.name));
+  }
+
+  function renderCollection() {
+    const root = $("collectionView");
+    root.replaceChildren();
+    const head = el("div", "coll-head");
+    head.append(el("h2", null, "My Collection"));
+    head.append(el("span", "meta", "Saved on this device. Download a backup to keep it safe or move it to another device."));
+    root.append(head);
+
+    const spent = coll.reduce((s, x) => s + (parseFloat(x.paid) || 0), 0);
+    const stats = el("div", "coll-stats");
+    [[coll.length, "comics"], [new Set(coll.map(x => x.series)).size, "series"], [coll.filter(x => x.key).length, "key issues"],
+     [coll.filter(x => x.graded).length, "graded"], [money(spent), "spent"]].forEach(([n, l]) => {
+      const s = el("div", "stat"); s.append(el("b", null, String(n)), el("span", null, l)); stats.append(s);
+    });
+    root.append(stats);
+
+    const msg = el("div", "coll-msg", collState.msg); msg.setAttribute("role", "status");
+    const say = t => { collState.msg = t; msg.textContent = t; };
+
+    // Add a comic by hand
+    const addP = el("div", "coll-panel");
+    addP.append(el("h3", null, "Add a comic"));
+    addP.append(el("div", "tip", "Tip: the quickest way is “I own this” on any search result. Use this for anything else."));
+    const form = el("form", "manual-add");
+    form.innerHTML =
+      '<label>Series<input id="caSeries" required placeholder="e.g. Venom"></label>' +
+      '<label>Issue #<input id="caIssue" placeholder="e.g. 3 (blank for a trade)"></label>' +
+      '<label>Year<input id="caYear" type="number" min="1930" max="2100"></label>' +
+      '<label>Condition<select id="caGrade"></select></label>' +
+      '<label>Price paid ($)<input id="caPaid" type="number" min="0" step="0.01"></label>' +
+      '<button class="btn primary" type="submit">Add to collection</button>';
+    const gsel = form.querySelector("#caGrade");
+    GRADES.forEach(g => { const o = el("option", null, g || "Not set"); o.value = g; gsel.append(o); });
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const series = form.querySelector("#caSeries").value.trim();
+      if (!series) return;
+      const issue = form.querySelector("#caIssue").value.trim().replace(/^#/, "");
+      const c = { series, issue, year: Number(form.querySelector("#caYear").value) || "", format: issue ? "single" : "trade" };
+      if (owned(c)) { say("That one is already in your collection."); return; }
+      addOwned(c, { grade: gsel.value, paid: form.querySelector("#caPaid").value });
+      collState.msg = "Added " + label(c) + ".";
+      renderCollection();
+    });
+    addP.append(form);
+
+    // Backup / restore
+    const bk = el("div", "coll-panel");
+    bk.append(el("h3", null, "Backup"));
+    const bkRow = el("div", "coll-tools");
+    const b1 = el("button", "btn", "Download backup"); b1.type = "button";
+    b1.addEventListener("click", async () => say(await saveFile("longbox-collection.json", backupText(), "application/json")));
+    const b2 = el("button", "btn", "Download spreadsheet (CSV)"); b2.type = "button";
+    b2.addEventListener("click", async () => say(await saveFile("longbox-collection.csv", csvText(), "text/csv")));
+    const b3 = el("button", "btn", "Copy backup"); b3.type = "button";
+    b3.addEventListener("click", () => {
+      const t = backupText();
+      const fallback = () => { const ta = el("textarea"); ta.value = t; ta.className = "wide"; ta.rows = 4; ta.readOnly = true; bk.append(ta); ta.select(); say("Select all of the text below and copy it."); };
+      try { navigator.clipboard.writeText(t).then(() => say("Backup copied. Paste it somewhere safe, like a note or email to yourself."), fallback); } catch (e) { fallback(); }
+    });
+    const rl = el("label", "btn", "Restore from file");
+    const fi = el("input"); fi.type = "file"; fi.accept = ".json,application/json"; fi.hidden = true; fi.id = "restoreFile";
+    fi.addEventListener("change", () => {
+      const f = fi.files && fi.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => { collState.msg = restore(String(r.result)); renderCollection(); };
+      r.readAsText(f);
+    });
+    rl.append(fi);
+    bkRow.append(b1, b2, b3, rl);
+    bk.append(bkRow, msg);
+
+    if (!coll.length) {
+      const empty = el("div", "empty");
+      empty.append(el("div", null, "Your collection is empty. Search for a series or character and tap “I own this” on the comics you have."));
+      const go = el("button", "btn primary", "Find comics"); go.type = "button"; go.addEventListener("click", () => showView("find"));
+      empty.append(go);
+      root.append(empty, addP, bk);
+      return;
+    }
+
+    // Series progress
+    const prog = progressRows();
+    if (prog.length) {
+      const pp = el("div", "coll-panel");
+      pp.append(el("h3", null, "Series progress"));
+      const pl = el("div", "progress-list");
+      prog.slice(0, 12).forEach(r => {
+        const row = el("div", "prog");
+        row.append(el("span", null, r.name), el("span", "pc", r.have + " of " + r.total));
+        const bar = el("div", "bar"); const fill = el("i"); fill.style.width = Math.round(100 * r.have / r.total) + "%"; bar.append(fill);
+        row.append(bar);
+        pl.append(row);
+      });
+      pp.append(pl);
+      root.append(pp);
+    }
+
+    // Filter + sort
+    const tools = el("div", "coll-tools");
+    const q = el("input"); q.type = "search"; q.id = "collFilter"; q.placeholder = "Search your collection"; q.value = collState.q; q.setAttribute("aria-label", "Search your collection");
+    const so = el("select"); so.id = "collSort"; so.setAttribute("aria-label", "Sort collection");
+    [["series", "Series A to Z"], ["recent", "Recently added"], ["year", "Oldest first"], ["paid", "Most paid"], ["grade", "Best condition"]].forEach(([v, t]) => { const o = el("option", null, t); o.value = v; so.append(o); });
+    so.value = collState.sort;
+    tools.append(q, so);
+    root.append(tools);
+
+    const listBox = el("div", "collection");
+    root.append(listBox, addP, bk);
+
+    function itemRow(x) {
+      const k = keyOf(x);
+      const it = el("div", "citem");
+      const line = el("div", "line");
+      line.append(el("b", null, (x.issue ? "#" + x.issue : (x.format === "omnibus" ? "Omnibus" : "Collected edition")) + (x.year ? " (" + x.year + ")" : "")));
+      if (x.key) line.append(el("span", "badge key", "Key"));
+      if (x.grade) line.append(el("span", "gchip" + (x.graded ? " slab" : ""), (x.graded ? "CGC " : "") + x.grade.split(" ")[0]));
+      if (x.paid !== "" && x.paid != null) line.append(el("span", "paid", money(x.paid)));
+      const ed = el("button", "linkbtn", collState.edit === k ? "Close" : "Edit"); ed.type = "button";
+      ed.addEventListener("click", () => { collState.edit = collState.edit === k ? null : k; drawList(); });
+      const val = el("a", "linkbtn", "Check value ↗"); val.href = STORES.ebaySold.url(queryFor(x)); val.target = "_blank"; val.rel = "noopener";
+      line.append(ed, val);
+      it.append(line);
+      if (x.notes && collState.edit !== k) it.append(el("div", "tip", x.notes));
+      if (collState.edit === k) {
+        const e = el("div", "editor");
+        const gl = el("label", null, "Condition"); const gs = el("select");
+        GRADES.forEach(g => { const o = el("option", null, g || "Not set"); o.value = g; gs.append(o); }); gs.value = x.grade || "";
+        gs.addEventListener("change", () => { x.grade = gs.value; saveColl(); });
+        gl.append(gs);
+        const pl = el("label", null, "Price paid ($)"); const pi = el("input"); pi.type = "number"; pi.min = "0"; pi.step = "0.01"; pi.value = x.paid || "";
+        pi.addEventListener("input", () => { x.paid = pi.value; saveColl(); });
+        pl.append(pi);
+        const cl = el("label", "check"); const cb = el("input"); cb.type = "checkbox"; cb.checked = !!x.graded;
+        cb.addEventListener("change", () => { x.graded = cb.checked; saveColl(); });
+        cl.append(cb, document.createTextNode("Professionally graded (CGC/CBCS slab)"));
+        const nl = el("label", "wide", "Notes"); const nt = el("textarea"); nt.rows = 2; nt.value = x.notes || ""; nt.placeholder = "Variant cover, signed, where you bought it…";
+        nt.addEventListener("input", () => { x.notes = nt.value; saveColl(); });
+        nl.append(nt);
+        const acts = el("div", "acts");
+        const done = el("button", "btn primary", "Done"); done.type = "button";
+        done.addEventListener("click", () => { collState.edit = null; renderCollection(); });
+        const rm = el("button", "btn danger", "Remove from collection"); rm.type = "button";
+        rm.addEventListener("click", () => {
+          if (rm.dataset.confirm !== "1") { rm.dataset.confirm = "1"; rm.textContent = "Tap again to remove"; return; }
+          removeOwned(x); collState.edit = null; collState.msg = "Removed " + label(x) + "."; renderCollection();
+        });
+        acts.append(done, rm);
+        e.append(gl, pl, cl, nl, acts);
+        it.append(e);
+      }
+      return it;
+    }
+
+    function drawList() {
+      const f = norm(collState.q);
+      let items = coll.filter(x => !f || norm([x.series, x.issue, x.year, x.notes, x.grade].join(" ")).includes(f));
+      listBox.replaceChildren();
+      if (!items.length) { listBox.append(el("div", "none", "Nothing in your collection matches that search.")); return; }
+      const gnum = x => parseFloat(x.grade) || 0;
+      const s = collState.sort;
+      if (s === "series") {
+        const groups = new Map();
+        items.slice().sort((a, b) => a.series.localeCompare(b.series) || (Number(a.year) || 0) - (Number(b.year) || 0) || issueNum(a.issue) - issueNum(b.issue))
+          .forEach(x => { if (!groups.has(x.series)) groups.set(x.series, []); groups.get(x.series).push(x); });
+        groups.forEach((list, name) => {
+          const g = el("div", "coll-group");
+          const h = el("h3", null, name);
+          const paid = list.reduce((t, x) => t + (parseFloat(x.paid) || 0), 0);
+          h.append(el("span", null, list.length + (list.length === 1 ? " comic" : " comics") + (paid ? " · " + money(paid) : "")));
+          g.append(h);
+          list.forEach(x => g.append(itemRow(x)));
+          listBox.append(g);
+        });
+        return;
+      }
+      items = items.slice().sort(
+        s === "recent" ? (a, b) => String(b.added).localeCompare(String(a.added))
+        : s === "year" ? (a, b) => (Number(a.year) || 9999) - (Number(b.year) || 9999) || issueNum(a.issue) - issueNum(b.issue)
+        : s === "paid" ? (a, b) => (parseFloat(b.paid) || 0) - (parseFloat(a.paid) || 0)
+        : (a, b) => gnum(b) - gnum(a));
+      const g = el("div", "coll-group");
+      items.forEach(x => { const r = itemRow(x); r.querySelector(".line b").textContent = x.series + " " + r.querySelector(".line b").textContent; g.append(r); });
+      listBox.append(g);
+    }
+    q.addEventListener("input", () => { collState.q = q.value; drawList(); });
+    so.addEventListener("change", () => { collState.sort = so.value; drawList(); });
+    drawList();
+  }
+
+  function showView(v) {
+    const isColl = v === "collection";
+    $("findView").hidden = isColl;
+    $("collectionView").hidden = !isColl;
+    $("tabFind").setAttribute("aria-selected", String(!isColl));
+    $("tabColl").setAttribute("aria-selected", String(isColl));
+    document.body.classList.toggle("in-coll", isColl);
+    if (isColl) { collState.msg = ""; renderCollection(); } else if (current) renderResults();
+    try { history.replaceState(null, "", isColl ? "#collection" : location.pathname + location.search); } catch (e) {}
   }
 
   // ---------- Stores ----------
@@ -1167,7 +1527,13 @@ button, input { font: inherit; color: inherit; }
     card.append(cover, body);
     card.setAttribute("aria-label", (card.getAttribute("aria-pressed") === "true" ? "Remove " : "Add ") + label(c) + " to pull list");
     card.addEventListener("click", () => toggle(c));
-    return card;
+    const wrap = el("div", "cardwrap");
+    const own = el("button", "ownbtn"); own.type = "button";
+    const setOwn = () => { const o = owned(c); own.setAttribute("aria-pressed", String(o)); own.textContent = o ? "✓ In my collection" : "I own this"; };
+    setOwn();
+    own.addEventListener("click", () => { toggleOwned(c); setOwn(); });
+    wrap.append(card, own);
+    return wrap;
   }
 
   function renderResults() {
@@ -1301,6 +1667,9 @@ button, input { font: inherit; color: inherit; }
       const q = queryFor(c);
       p.order.forEach((k, i) => stores.append(storeLink(k, q, i === 0)));
       it.append(stores);
+      const got = el("button", "btn pullgot", "✓ Got it: move to my collection"); got.type = "button";
+      got.addEventListener("click", () => { addOwned(c); toggle(c); });
+      it.append(got);
       list.append(it);
     });
   }
@@ -1333,6 +1702,10 @@ button, input { font: inherit; color: inherit; }
     quick.append(b);
   });
 
+  $("tabFind").addEventListener("click", () => showView("find"));
+  $("tabColl").addEventListener("click", () => showView("collection"));
+  saveColl();
+  if (location.hash === "#collection") setTimeout(() => showView("collection"), 0);
   renderKeybar(false);
   renderPull();
   renderWelcome();

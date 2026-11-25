@@ -44,7 +44,7 @@ page = swap(page, 'Results from "Ask Claude" are generated and may contain mista
             'Series and character data from <a href="https://comicvine.gamespot.com/" target="_blank" rel="noopener">Comic Vine</a>.')
 page = swap(page, "  renderPull();\n  renderWelcome();\n})();", "  renderKeybar(false);\n  renderPull();\n  renderWelcome();\n})();")
 
-assert "claude.use" not in page, "Claude-only code left in phone build"
+assert 'use("sample")' not in page and 'use("mcp")' not in page, "Claude-only code left in phone build"
 
 head = """<!doctype html>
 <html lang="en">
