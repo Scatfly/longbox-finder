@@ -186,6 +186,38 @@ button, input { font: inherit; color: inherit; }
 .legend { padding: 12px 16px; border-top: 2px solid var(--ink); font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
 .legend b { color: var(--ink); }
 
+.related { margin-top: 22px; display: grid; gap: 8px; }
+.relchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--ink); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: 13px; }
+.apps { margin-top: 32px; border-top: 3px solid var(--ink); padding-top: 18px; display: grid; gap: 10px; }
+.apps-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.apps-head h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 28px; letter-spacing: 1px; line-height: 1; }
+.apps-head .meta { color: var(--muted); font-size: 13px; }
+.apps-tip { margin: 0; color: var(--muted); font-size: 13px; }
+.apps-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.apps-controls input, .apps-controls select { border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--card); }
+.apps-controls input { flex: 1 1 240px; min-width: 0; }
+.apps-list { display: grid; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+.apps-list > .btn { margin: 10px; justify-self: start; }
+.apps-list .none { padding: 14px; color: var(--muted); }
+.apps-row { border-bottom: 1px solid var(--line); }
+.apps-row:last-of-type { border-bottom: 0; }
+.apps-toggle { width: 100%; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; gap: 10px; align-items: baseline; text-align: left; background: none; border: 0; padding: 11px 14px; cursor: pointer; }
+.apps-toggle:hover { background: var(--chip); }
+.apps-caret { color: var(--muted); }
+.apps-name { font-weight: 700; overflow-wrap: anywhere; }
+.apps-yr { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.apps-n { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.apps-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 14px 14px 40px; }
+.ichip { border: 1.5px solid var(--line); background: var(--paper); border-radius: 6px; padding: 4px 8px; cursor: pointer; display: grid; line-height: 1.15; text-align: center; min-width: 52px; }
+.ichip b { font-size: 13px; }
+.ichip small { font-size: 10.5px; color: var(--muted); font-family: var(--mono); }
+.ichip:hover { border-color: var(--ink); }
+.ichip[aria-pressed="true"] { background: var(--yellow); border-color: #15171c; color: #15171c; }
+.ichip[aria-pressed="true"] small { color: #15171c; }
+.apps-links { flex-basis: 100%; display: flex; gap: 16px; margin-top: 4px; }
+@media (max-width: 560px) { .apps-chips { padding-left: 14px; } .apps-toggle { gap: 8px; padding-inline: 12px; } }
+
 .fallback { border: 2px dashed var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 10px; }
 .fallback h3 { margin: 0; font-size: 18px; }
 .fallback p { margin: 0; color: var(--muted); max-width: 65ch; }
@@ -547,6 +579,166 @@ button, input { font: inherit; color: inherit; }
     ["character", "Deadpool"], ["character", "Storm"]
   ];
 
+  // ---------- Full appearance data (catalog-data.json, collected from Comic Vine) ----------
+  let DATA = null;
+  const DATA_CHARS = { jubilee: ["jubilee", "jubilation lee"], venom: ["venom", "eddie brock", "symbiote", "the symbiote"] };
+  const appsState = {};   // per character: { open: Set, filter, sort, showAll }
+  fetch("catalog-data.json").then(r => r.ok ? r.json() : null)
+    .then(d => { if (d && d.characters) { DATA = d; if (current) renderResults(); } })
+    .catch(() => {});
+  const yearIn = s => { const m = String(s || "").match(/(\d{4})/); return m ? Number(m[1]) : ""; };
+  const SHORT_MONTH = { January: "Jan", February: "Feb", March: "Mar", April: "Apr", May: "May", June: "Jun", July: "Jul", August: "Aug", September: "Sep", October: "Oct", November: "Nov", December: "Dec" };
+  const shortDate = s => { const m = String(s || "").match(/([A-Za-z]+)\s+(\d{4})/); return m ? (SHORT_MONTH[m[1]] || m[1].slice(0, 3)) + " ’" + m[2].slice(2) : String(s || ""); };
+
+  function dataCharKey(q) {
+    const n = norm(q || "");
+    for (const [k, names] of Object.entries(DATA_CHARS)) if (names.includes(n)) return DATA && DATA.characters[k] ? k : null;
+    return null;
+  }
+  const volComics = v => v.i.map(([num, date, title]) => ({
+    series: v.n, issue: num, year: yearIn(date) || v.y, writer: "", artist: "", format: "single", key: false,
+    note: [date, title].filter(Boolean).join(" · ")
+  }));
+
+  // Series search over the data: only series named after Venom or Jubilee (so "X-Men" doesn't show a partial run).
+  function dataSeriesMatch(query) {
+    if (!DATA) return null;
+    const q = norm(query);
+    if (!q) return null;
+    const ym = q.match(/\b(19|20)\d{2}\b/);
+    const year = ym ? Number(ym[0]) : null;
+    const base = q.replace(/\b(19|20)\d{2}\b/, "").replace(/\s+/g, " ").trim();
+    const seen = new Set(), vols = [];
+    Object.values(DATA.characters).forEach(c => c.volumes.forEach(v => {
+      if (/venom|jubilee/i.test(v.n) && !seen.has(v.cv)) { seen.add(v.cv); vols.push(v); }
+    }));
+    const STOP = ["the", "of", "and", "a", "an", "vs"];
+    const words = base.split(" ").filter(w => w.length > 1 && !STOP.includes(w));
+    let hits = vols.filter(v => norm(v.n) === base);
+    if (!hits.length && words.length >= 2) hits = vols.filter(v => { const hay = new Set(norm(v.n).split(" ")); return words.every(w => hay.has(w)); });
+    if (year) { const y = hits.filter(v => v.y === year); if (y.length) hits = y; }
+    if (!hits.length) return null;
+    return hits.sort((a, b) => b.y - a.y || b.i.length - a.i.length);
+  }
+
+  function showDataSeries(hits, query) {
+    const v = hits[0];
+    current = {
+      title: v.n + " (" + v.y + ")",
+      summary: (v.d ? v.d + " " : "") + v.i.length + " issue" + (v.i.length === 1 ? "" : "s") + " listed on Comic Vine.",
+      comics: volComics(v), source: "Comic Vine data", sourceUrl: "https://comicvine.gamespot.com" + v.cv,
+      kind: "series", query, alts: hits.slice(1, 16)
+    };
+    renderResults();
+  }
+
+  function altsBox(c) {
+    const box = el("div", "related");
+    box.append(el("div", "flabel", "Other series with a similar name"));
+    const wrap = el("div", "relchips");
+    c.alts.forEach((v, idx) => {
+      const b = el("button", "pill", v.n + " (" + v.y + ") · " + v.i.length + " issue" + (v.i.length === 1 ? "" : "s"));
+      b.type = "button";
+      b.addEventListener("click", () => { const rest = c.alts.filter((_, j) => j !== idx); showDataSeries([v].concat(rest), c.query); window.scrollTo({ top: 0, behavior: "smooth" }); });
+      wrap.append(b);
+    });
+    box.append(wrap);
+    return box;
+  }
+
+  function toggleQuiet(c) {
+    const k = keyOf(c);
+    const i = pull.findIndex(p => keyOf(p) === k);
+    if (i >= 0) pull.splice(i, 1); else pull.push(c);
+    savePull();
+    renderPull();
+  }
+
+  // "Every appearance" browser shown under a character's results.
+  function appearancesBox(c) {
+    const key = dataCharKey(c.query) || dataCharKey(c.title);
+    if (!key) return null;
+    const ch = DATA.characters[key];
+    const st = appsState[key] || (appsState[key] = { open: new Set(), filter: "", sort: "most", showAll: false });
+    const total = ch.volumes.reduce((s, v) => s + v.i.length, 0);
+    const box = el("section", "apps");
+    const head = el("div", "apps-head");
+    head.append(el("h3", null, "Every " + ch.name + " comic"));
+    head.append(el("span", "meta", ch.volumes.length + " series · " + total.toLocaleString() + " issues · US Marvel comics listed on Comic Vine"));
+    box.append(head);
+    box.append(el("p", "apps-tip", "Tap a series to see the issues, then tap an issue to add it to your pull list."));
+    const controls = el("div", "apps-controls");
+    const filter = el("input"); filter.type = "search"; filter.id = "appsFilter-" + key; filter.value = st.filter;
+    filter.placeholder = "Filter series, e.g. Generation X or 1994"; filter.setAttribute("aria-label", "Filter series");
+    const sort = el("select"); sort.id = "appsSort-" + key; sort.setAttribute("aria-label", "Sort series");
+    [["most", "Most appearances"], ["new", "Newest first"], ["old", "Oldest first"], ["az", "A to Z"]].forEach(([v, t]) => { const o = el("option", null, t); o.value = v; sort.append(o); });
+    sort.value = st.sort;
+    controls.append(filter, sort);
+    box.append(controls);
+    const list = el("div", "apps-list");
+    box.append(list);
+
+    function chips(v) {
+      const wrap = el("div", "apps-chips");
+      volComics(v).forEach((cm, idx) => {
+        const on = pull.some(p => keyOf(p) === keyOf(cm));
+        const b = el("button", "ichip");
+        b.type = "button";
+        b.setAttribute("aria-pressed", String(on));
+        b.append(el("b", null, "#" + cm.issue), el("small", null, shortDate(v.i[idx][1])));
+        if (v.i[idx][2]) b.title = v.i[idx][2];
+        b.setAttribute("aria-label", (on ? "Remove " : "Add ") + label(cm) + " to pull list");
+        b.addEventListener("click", () => {
+          toggleQuiet(cm);
+          const now = pull.some(p => keyOf(p) === keyOf(cm));
+          b.setAttribute("aria-pressed", String(now));
+          b.setAttribute("aria-label", (now ? "Remove " : "Add ") + label(cm) + " to pull list");
+        });
+        wrap.append(b);
+      });
+      const links = el("div", "apps-links");
+      const all = el("button", "linkbtn", "Show as cards"); all.type = "button";
+      all.addEventListener("click", () => { showDataSeries([v], v.n); window.scrollTo({ top: 0, behavior: "smooth" }); });
+      const cvl = el("a", "linkbtn", "Comic Vine ↗"); cvl.href = "https://comicvine.gamespot.com" + v.cv; cvl.target = "_blank"; cvl.rel = "noopener";
+      links.append(all, cvl);
+      wrap.append(links);
+      return wrap;
+    }
+    function row(v) {
+      const r = el("div", "apps-row");
+      const btn = el("button", "apps-toggle"); btn.type = "button";
+      const isOpen = st.open.has(v.cv);
+      btn.setAttribute("aria-expanded", String(isOpen));
+      btn.append(el("span", "apps-caret", isOpen ? "▾" : "▸"), el("span", "apps-name", v.n), el("span", "apps-yr", String(v.y)), el("span", "apps-n", v.i.length + (v.i.length === 1 ? " issue" : " issues")));
+      r.append(btn);
+      if (isOpen) r.append(chips(v));
+      btn.addEventListener("click", () => { isOpen ? st.open.delete(v.cv) : st.open.add(v.cv); r.replaceWith(row(v)); });
+      return r;
+    }
+    function draw() {
+      const f = norm(st.filter);
+      let vols = ch.volumes.filter(v => !f || (norm(v.n) + " " + v.y).includes(f));
+      const s = st.sort;
+      vols = vols.slice().sort(s === "new" ? (a, b) => b.y - a.y || a.n.localeCompare(b.n)
+        : s === "old" ? (a, b) => a.y - b.y || a.n.localeCompare(b.n)
+        : s === "az" ? (a, b) => a.n.localeCompare(b.n) || a.y - b.y
+        : (a, b) => b.i.length - a.i.length || a.y - b.y);
+      list.replaceChildren();
+      const LIMIT = 40;
+      vols.slice(0, st.showAll ? vols.length : LIMIT).forEach(v => list.append(row(v)));
+      if (!st.showAll && vols.length > LIMIT) {
+        const more = el("button", "btn", "Show all " + vols.length + " series"); more.type = "button";
+        more.addEventListener("click", () => { st.showAll = true; draw(); });
+        list.append(more);
+      }
+      if (!vols.length) list.append(el("div", "none", "No series match that filter."));
+    }
+    filter.addEventListener("input", () => { st.filter = filter.value; st.showAll = false; draw(); });
+    sort.addEventListener("change", () => { st.sort = sort.value; draw(); });
+    draw();
+    return box;
+  }
+
   // ---------- Stores ----------
   const enc = s => encodeURIComponent(s);
   const STORES = {
@@ -824,9 +1016,12 @@ button, input { font: inherit; color: inherit; }
     setMode(kind);
     $("q").value = query;
     const hit = localMatch(query, kind);
+    const dataHits = !hit && kind === "series" ? dataSeriesMatch(query) : null;
     if (hit) {
       current = { title: hit.name, summary: hit.summary, comics: hit.comics, source: "Built-in", kind, query };
       renderResults();
+    } else if (dataHits) {
+      showDataSeries(dataHits, query);
     } else {
       askClaude(query, kind);
     }
@@ -877,8 +1072,8 @@ button, input { font: inherit; color: inherit; }
     root.append(status);
     const sum = el("p", "summary", c.summary);
     const srcTag = el("span", "source");
-    if (c.source === "Comic Vine" && c.sourceUrl) {
-      const a = el("a", null, "live from Comic Vine ↗"); a.href = c.sourceUrl; a.target = "_blank"; a.rel = "noopener";
+    if ((c.source === "Comic Vine" || c.source === "Comic Vine data") && c.sourceUrl) {
+      const a = el("a", null, (c.source === "Comic Vine" ? "live from" : "from") + " Comic Vine ↗"); a.href = c.sourceUrl; a.target = "_blank"; a.rel = "noopener";
       srcTag.append(a);
     } else {
       srcTag.textContent = { Claude: "from Claude", "Comic Vine": "live from Comic Vine", Manual: "entered by you" }[c.source] || "built-in";
@@ -921,6 +1116,8 @@ button, input { font: inherit; color: inherit; }
     const grid = el("div", "grid");
     c.comics.forEach(x => grid.append(comicCard(x)));
     root.append(grid);
+    if (c.alts && c.alts.length) root.append(altsBox(c));
+    if (c.kind === "character" && DATA) { const ab = appearancesBox(c); if (ab) root.append(ab); }
   }
 
   function renderThinking(query, message) {

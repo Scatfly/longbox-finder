@@ -1,6 +1,6 @@
 // Keeps the app working offline: network first, cached copy when there's no signal.
-const CACHE = "longbox-v1";
-const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
+const CACHE = "longbox-v2";
+const SHELL = ["./", "index.html", "catalog-data.json", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
