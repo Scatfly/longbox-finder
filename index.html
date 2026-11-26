@@ -735,7 +735,9 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     const v = hits[0];
     current = {
       title: v.n + " (" + v.y + ")",
-      summary: (v.d ? v.d + " " : "") + v.i.length + " issue" + (v.i.length === 1 ? "" : "s") + " listed on Comic Vine.",
+      summary: (v.d ? v.d + " " : "") + (v.who && !/venom|jubilee/i.test(v.n)
+        ? "The " + v.i.length + " issue" + (v.i.length === 1 ? "" : "s") + " " + v.who.join(" or ") + (v.who.length > 1 ? " appear" : " appears") + " in, listed on Comic Vine."
+        : v.i.length + " issue" + (v.i.length === 1 ? "" : "s") + " listed on Comic Vine."),
       comics: volComics(v), source: "Comic Vine data", sourceUrl: "https://comicvine.gamespot.com" + v.cv,
       kind: "series", query, alts: hits.slice(1, 16)
     };
@@ -1484,19 +1486,102 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     }) || null;
   }
 
+  // "Generation X #24", "venom issue 3", "wolverine and jubilee 2" -> { base, issue, explicit }
+  function splitIssue(query) {
+    let raw = query.trim(), year = "";
+    const ym = raw.match(/\s*\(?\b((?:19|20)\d{2})\b\)?\s*$/);
+    if (ym && /#|\bissue\b|\bno\b/i.test(raw.slice(0, ym.index))) { year = ym[1]; raw = raw.slice(0, ym.index); }
+    const withYear = b => (b + (year ? " " + year : "")).trim();
+    let m = raw.match(/^(.*?)\s*(?:#|\b(?:issue|iss\.?|no\.?|number)\s*#?)\s*(-?\d+(?:\.\d+)?[a-z]?)\s*$/i);
+    if (m && m[1].trim()) return { base: withYear(m[1]), issue: m[2], explicit: true };
+    m = raw.match(/^(.*\S)\s+(\d{1,3}(?:\.\d+)?)$/);
+    if (m && !year) return { base: m[1], issue: m[2], explicit: false };
+    return null;
+  }
+  const normIssue = s => String(s || "").trim().toLowerCase().replace(/^0+(?=\d)/, "");
+  // Who appears in a data volume (it can be listed under both Jubilee and Venom).
+  function dataVolume(cv) {
+    let out = null; const who = [];
+    Object.values(DATA.characters).forEach(c => c.volumes.forEach(v => {
+      if (v.cv !== cv) return;
+      who.push(c.name);
+      if (!out) out = Object.assign({}, v, { i: v.i.slice() });
+      else v.i.forEach(x => { if (!out.i.some(y => y[0] === x[0])) out.i.push(x); });
+    }));
+    if (out) { out.who = who; out.i.sort((a, b) => issueNum(a[0]) - issueNum(b[0])); }
+    return out;
+  }
+  function issueCandidates(base) {
+    const out = [], q = norm(base);
+    const lm = localMatch(base, "series");
+    const lmExact = lm && (norm(lm.name) === q || lm.aliases.some(a => norm(a) === q));
+    if (lm && lmExact) out.push({ name: lm.name, comics: lm.comics, entry: lm });
+    if (DATA) {
+      const ym = q.match(/\b(19|20)\d{2}\b/), year = ym ? Number(ym[0]) : null;
+      const b = q.replace(/\b(19|20)\d{2}\b/, "").replace(/\s+/g, " ").trim();
+      const seen = new Set(), add = cv => { if (seen.has(cv)) return; seen.add(cv); const v = dataVolume(cv); out.push({ name: v.n + " (" + v.y + ")", comics: volComics(v), vol: v }); };
+      const exact = [];
+      Object.values(DATA.characters).forEach(c => c.volumes.forEach(v => { if (norm(v.n) === b && (!year || v.y === year)) exact.push(v); }));
+      exact.sort((x, y) => y.i.length - x.i.length).forEach(v => add(v.cv));
+      if (lm && !lmExact) out.push({ name: lm.name, comics: lm.comics, entry: lm });
+      (dataSeriesMatch(base) || []).forEach(v => add(v.cv));
+    } else if (lm && !lmExact) out.push({ name: lm.name, comics: lm.comics, entry: lm });
+    return out;
+  }
+  function issueSearch(si, query, strict) {
+    const cands = issueCandidates(si.base);
+    if (!cands.length) return false;
+    const want = normIssue(si.issue);
+    const has = cd => cd.comics.find(x => x.format === "single" && normIssue(x.issue) === want);
+    if (strict && !cands.some(has)) return false;
+    const cand = cands.find(has) || cands[0];
+    let comic = has(cand);
+    const found = !!comic;
+    if (!comic) {
+      const ref = cand.comics.find(x => x.format === "single") || cand.comics[0];
+      comic = { series: ref ? ref.series : cand.name, issue: si.issue, year: "", writer: "", artist: "", format: "single", key: false,
+        note: "Not in Longbox's list for this series, so double-check the issue number. The store links still search for it." };
+    }
+    const v = cand.vol;
+    const who = v && v.who && !/venom|jubilee/i.test(v.n) ? " " + v.who.join(" and ") + (v.who.length > 1 ? " appear" : " appears") + " in this issue." : "";
+    current = {
+      title: comic.series + " #" + comic.issue,
+      summary: (found ? "Issue #" + comic.issue + " of " + cand.name + "." + who : "Issue #" + si.issue + " of " + cand.name + "."),
+      comics: [comic], source: v ? "Comic Vine data" : "Built-in issue", sourceUrl: v ? "https://comicvine.gamespot.com" + v.cv : undefined,
+      kind: "series", query,
+      whole: { label: "See all of " + cand.name, go: () => {
+        if (v) showDataSeries([v], si.base);
+        else { const e = cand.entry; current = { title: e.name, summary: e.summary, comics: e.comics, source: "Built-in", kind: "series", query: si.base }; renderResults(); }
+      } },
+      alts: v ? cands.filter(c => c !== cand && c.vol && has(c)).map(c => c.vol).slice(0, 8) : []
+    };
+    renderResults();
+    return true;
+  }
+
   function search(query, kind) {
     query = query.trim();
     if (!query) return;
     setMode(kind);
     $("q").value = query;
-    const hit = localMatch(query, kind);
+    const si = kind === "series" ? splitIssue(query) : null;
+    if (si && si.explicit && issueSearch(si, query)) return;
+    let hit = localMatch(query, kind);
+    const q = norm(query), exactHit = hit && (norm(hit.name) === q || hit.aliases.some(a => norm(a) === q));
+    // "venom lethal protector 4": a trailing number is an issue unless the whole text names a series.
+    if (si && !si.explicit && !exactHit && issueSearch(si, query, true)) return;
+    // A close-but-not-exact built-in match loses to a series with exactly that name ("generation x" -> the 1994 run).
+    if (!exactHit && kind === "series" && DATA) {
+      const ex = issueCandidates(query).filter(cd => cd.vol && norm(cd.vol.n) === q.replace(/\b(19|20)\d{2}\b/, "").trim());
+      if (ex.length) { showDataSeries(ex.map(cd => cd.vol), query); return; }
+    }
     const dataHits = !hit && kind === "series" ? dataSeriesMatch(query) : null;
     if (hit) {
       current = { title: hit.name, summary: hit.summary, comics: hit.comics, source: "Built-in", kind, query };
       renderResults();
     } else if (dataHits) {
       showDataSeries(dataHits, query);
-    } else {
+    } else if (!(si && !si.explicit && issueSearch(si, query))) {
       askClaude(query, kind);
     }
   }
@@ -1571,6 +1656,11 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     allBtn.type = "button";
     allBtn.addEventListener("click", () => { c.comics.forEach(x => { if (!pull.some(p => keyOf(p) === keyOf(x))) pull.push(x); }); savePull(); renderResults(); renderPull(); });
     tb.append(allBtn);
+    if (c.whole) {
+      const w = el("button", "btn", c.whole.label); w.type = "button";
+      w.addEventListener("click", () => { c.whole.go(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+      tb.append(w);
+    }
     if (c.kind === "series" && singles > 1 && new Set(c.comics.filter(x => x.format === "single").map(x => x.series)).size === 1) {
       const first = c.comics.find(x => x.format === "single");
       const nums = c.comics.filter(x => x.format === "single" && x.series === first.series).map(x => x.issue);
