@@ -80,8 +80,9 @@ def volume(item):
                 continue
             name = re.search(r'<p class="issue-name">(.*?)</p>', block, re.S)
             date = re.search(r'<p class="issue-date">(.*?)</p>', block, re.S)
+            img = re.search(r'<img[^>]+src="([^"]+)"', block)
             n = re.sub(r"^.*?#\s*", "", text(num.group(1)))
-            issues.append([n, text(date.group(1)) if date else "", text(name.group(1)) if name else ""])
+            issues.append([n, text(date.group(1)) if date else "", text(name.group(1)) if name else "", img.group(1) if img else ""])
         if "?page=%d" % (p + 1) not in ah:
             break
     return {"name": item["name"], "year": int(m.group(1)), "cv": item["vol"], "deck": deck, "count": item["count"], "issues": issues}

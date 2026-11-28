@@ -1,7 +1,8 @@
 """Turns the raw Comic Vine collection (raw.json) into the app's compact catalog-data.json.
 
 raw.json shape: {"collected": "2026-11-25", "out": {"jubilee": [volume, ...], "venom": [...]}}
-where volume = {name, year, cv, deck, count, issues: [[number, "Month YYYY", title], ...]}.
+where volume = {name, year, cv, deck, count, issues: [[number, "Month YYYY", title, cover_url], ...]}.
+In the output, cover_url is shortened to the part after IMG_BASE (the app adds it back).
 Run:  py build_data.py path/to/raw.json
 """
 import json
@@ -18,8 +19,11 @@ MONTHS = {m: i for i, m in enumerate(["January", "February", "March", "April", "
                                       "September", "October", "November", "December"], 1)}
 
 
+IMG_BASE = "https://comicvine.gamespot.com/a/uploads/scale_small/"
+
+
 def issue_sort_key(issue):
-    num, date, _ = issue
+    num, date = issue[0], issue[1]
     m = re.match(r"-?\d+(\.\d+)?", num or "")
     d = re.match(r"([A-Za-z]+)\s+(\d{4})", date or "")
     dk = (int(d.group(2)), MONTHS.get(d.group(1), 0)) if d else (9999, 0)
@@ -30,7 +34,16 @@ out = {"collected": raw.get("collected", ""), "source": "Comic Vine", "character
 for key, vols in raw["out"].items():
     seen = {}
     for v in vols:
-        issues = [[str(n).strip(), str(d).strip(), str(t).strip()] for n, d, t in v["issues"] if str(n).strip()]
+        issues = []
+        for it in v["issues"]:
+            n, d, t = (str(x).strip() for x in it[:3])
+            if not n:
+                continue
+            row = [n, d, t]
+            img = it[3] if len(it) > 3 else ""
+            if img and "/img/" not in img and "blank" not in img.rsplit("/", 1)[-1]:   # skip the "no cover" placeholder
+                row.append(img.replace(IMG_BASE, ""))
+            issues.append(row)
         if not issues:
             continue
         # de-duplicate issues within a volume

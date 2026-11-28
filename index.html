@@ -145,6 +145,11 @@ button, input { font: inherit; color: inherit; }
   content: ""; position: absolute; inset: 0; opacity: .28;
   background-image: radial-gradient(circle, #000 1.2px, transparent 1.6px); background-size: 7px 7px;
 }
+.cover .art-bg, .cover .art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cover .art-bg { object-fit: cover; filter: blur(14px) brightness(.6); transform: scale(1.25); }
+.cover .art { object-fit: contain; }
+.cover.has-art::before, .cover.has-art .num { display: none; }
+.cover .yr, .check { z-index: 1; }
 .cover .num { position: relative; font-family: var(--display); font-size: 46px; line-height: .85; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
 .cover .yr {
   position: absolute; top: 8px; left: 10px; font-family: var(--mono); font-size: 11px; font-weight: 600;
@@ -705,10 +710,33 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     for (const [k, names] of Object.entries(DATA_CHARS)) if (names.includes(n)) return DATA && DATA.characters[k] ? k : null;
     return null;
   }
-  const volComics = v => v.i.map(([num, date, title]) => ({
+  // Covers: the data stores the path after Comic Vine's image folder; cards use the medium size.
+  const CV_IMG = "https://comicvine.gamespot.com/a/uploads/scale_medium/";
+  const coverUrl = p => !p ? "" : /^https:\/\//.test(p) ? p.replace("/scale_small/", "/scale_medium/") : CV_IMG + p;
+  const volComics = v => v.i.map(([num, date, title, img]) => ({
     series: v.n, issue: num, year: yearIn(date) || v.y, writer: "", artist: "", format: "single", key: false,
-    note: [date, title].filter(Boolean).join(" · ")
+    note: [date, title].filter(Boolean).join(" · "), img: coverUrl(img)
   }));
+  // Find a cover for any single issue (built-in, pull list, collection) by series + issue, closest year.
+  let coverIdx = null;
+  function coverOf(c) {
+    if (c.img) return c.img;
+    if (!DATA || c.format !== "single" || !c.issue) return "";
+    if (!coverIdx) {
+      coverIdx = new Map();
+      Object.values(DATA.characters).forEach(ch => ch.volumes.forEach(v => v.i.forEach(([num, date, , img]) => {
+        if (!img) return;
+        const k = norm(v.n) + "|" + normIssue(num);
+        if (!coverIdx.has(k)) coverIdx.set(k, []);
+        coverIdx.get(k).push({ y: yearIn(date) || v.y, start: v.y, img: coverUrl(img) });
+      })));
+    }
+    const list = coverIdx.get(norm(c.series) + "|" + normIssue(c.issue));
+    if (!list) return "";
+    const y = Number(c.year) || 0;
+    const best = list.slice().sort((a, b) => Math.min(Math.abs(a.y - y), Math.abs(a.start - y)) - Math.min(Math.abs(b.y - y), Math.abs(b.start - y)))[0];
+    return !y || Math.min(Math.abs(best.y - y), Math.abs(best.start - y)) <= 1 ? best.img : "";
+  }
 
   // Series search over the data: only series named after Venom or Jubilee (so "X-Men" doesn't show a partial run).
   function dataSeriesMatch(query) {
@@ -1285,12 +1313,13 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
   async function cvShowVolume(vol, others, query, my) {
     const label = vol.name + (vol.start_year ? " (" + vol.start_year + ")" : "");
     renderThinking(label, "Loading the issues of " + label + "…");
-    const r = await cv("issues/", { filter: "volume:" + vol.id, field_list: "id,issue_number,cover_date,name", sort: "cover_date:asc", limit: 100 });
+    const r = await cv("issues/", { filter: "volume:" + vol.id, field_list: "id,issue_number,cover_date,name,image", sort: "cover_date:asc", limit: 100 });
     if (my.aborted) return;
     const issues = (r.results || []).slice().sort((a, b) => (parseFloat(a.issue_number) || 0) - (parseFloat(b.issue_number) || 0));
     const comics = issues.map(i => ({
       series: vol.name, issue: String(i.issue_number || ""), year: yearOf(i.cover_date) || Number(vol.start_year) || "",
-      writer: "", artist: "", format: "single", key: false, note: i.name ? String(i.name) : ""
+      writer: "", artist: "", format: "single", key: false, note: i.name ? String(i.name) : "",
+      img: i.image && /^https:\/\//.test(String(i.image.medium_url || "")) && !/\/img\//.test(i.image.medium_url) ? String(i.image.medium_url) : ""
     }));
     const total = Number(r.number_of_total_results) || comics.length;
     current = {
@@ -1598,6 +1627,15 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     const cover = el("div", "cover");
     const base = hue(c.series);
     cover.style.background = "linear-gradient(135deg, " + base + ", " + base + "cc 60%, #15171c)";
+    const art = coverOf(c);
+    if (art) {
+      const bg = el("img", "art-bg"), im = el("img", "art");
+      [bg, im].forEach(n => { n.src = art; n.alt = ""; n.loading = "lazy"; n.decoding = "async"; n.referrerPolicy = "no-referrer"; });
+      im.alt = label(c) + " cover";
+      im.addEventListener("error", () => { bg.remove(); im.remove(); cover.classList.remove("has-art"); });
+      cover.classList.add("has-art");
+      cover.append(bg, im);
+    }
     if (c.year) cover.append(el("span", "yr", String(c.year)));
     cover.append(el("span", "num", c.issue ? "#" + c.issue : (c.format === "omnibus" ? "OMNI" : "TPB")));
     const check = el("span", "check", card.getAttribute("aria-pressed") === "true" ? "✓" : "+");

@@ -77,12 +77,13 @@
   async function cvShowVolume(vol, others, query, my) {
     const label = vol.name + (vol.start_year ? " (" + vol.start_year + ")" : "");
     renderThinking(label, "Loading the issues of " + label + "…");
-    const r = await cv("issues/", { filter: "volume:" + vol.id, field_list: "id,issue_number,cover_date,name", sort: "cover_date:asc", limit: 100 });
+    const r = await cv("issues/", { filter: "volume:" + vol.id, field_list: "id,issue_number,cover_date,name,image", sort: "cover_date:asc", limit: 100 });
     if (my.aborted) return;
     const issues = (r.results || []).slice().sort((a, b) => (parseFloat(a.issue_number) || 0) - (parseFloat(b.issue_number) || 0));
     const comics = issues.map(i => ({
       series: vol.name, issue: String(i.issue_number || ""), year: yearOf(i.cover_date) || Number(vol.start_year) || "",
-      writer: "", artist: "", format: "single", key: false, note: i.name ? String(i.name) : ""
+      writer: "", artist: "", format: "single", key: false, note: i.name ? String(i.name) : "",
+      img: i.image && /^https:\/\//.test(String(i.image.medium_url || "")) && !/\/img\//.test(i.image.medium_url) ? String(i.image.medium_url) : ""
     }));
     const total = Number(r.number_of_total_results) || comics.length;
     current = {
