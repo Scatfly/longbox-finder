@@ -288,7 +288,18 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
 .coll-group { background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; }
 .coll-group > h3 { margin: 0; padding: 10px 14px; font-size: 15px; background: var(--chip); display: flex; justify-content: space-between; gap: 10px; }
 .coll-group > h3 span { color: var(--muted); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
-.citem { border-top: 1px solid var(--line); padding: 10px 14px; display: grid; gap: 8px; }
+.citem { border-top: 1px solid var(--line); padding: 10px 14px; display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px 12px; align-items: start; }
+.citem .cmain { display: grid; gap: 6px; min-width: 0; }
+.citem .editor { grid-column: 1 / -1; }
+.cthumb { position: relative; width: 48px; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); padding: 0; cursor: zoom-in;
+  display: grid; place-items: center; color: #fff; font-family: var(--display); font-size: 15px; letter-spacing: .5px; }
+.cthumb:disabled { cursor: default; opacity: 1; }
+.cthumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.coverview { border: 0; padding: 16px; border-radius: 12px; background: var(--card); color: var(--ink); max-width: min(92vw, 520px); max-height: 92vh; display: none; }
+.coverview[open] { display: grid; gap: 10px; justify-items: center; }
+.coverview::backdrop { background: rgba(0,0,0,.7); }
+.coverview img { max-width: 100%; max-height: 72vh; border-radius: 6px; }
+.coverview .cap { font-weight: 800; font-size: 15px; text-align: center; }
 .citem:first-of-type { border-top: 0; }
 .citem .line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .citem .line b { font-size: 14px; margin-right: auto; }
@@ -699,7 +710,13 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
   const DATA_CHARS = { jubilee: ["jubilee", "jubilation lee"], venom: ["venom", "eddie brock", "symbiote", "the symbiote"] };
   const appsState = {};   // per character: { open: Set, filter, sort, showAll }
   fetch("catalog-data.json").then(r => r.ok ? r.json() : null)
-    .then(d => { if (d && d.characters) { DATA = d; if (current) renderResults(); } })
+    .then(d => {
+      if (!d || !d.characters) return;
+      DATA = d; coverIdx = null;
+      if (current) renderResults();
+      const cv = document.getElementById("collectionView");
+      if (cv && !cv.hidden && collState.edit == null) renderCollection();
+    })
     .catch(() => {});
   const yearIn = s => { const m = String(s || "").match(/(\d{4})/); return m ? Number(m[1]) : ""; };
   const SHORT_MONTH = { January: "Jan", February: "Feb", March: "Mar", April: "Apr", May: "May", June: "Jun", July: "Jul", August: "Aug", September: "Sep", October: "Oct", November: "Nov", December: "Dec" };
@@ -974,6 +991,38 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     return rows.sort((a, b) => b.have / b.total - a.have / a.total || a.name.localeCompare(b.name));
   }
 
+  // Small cover for collection rows; tap to see it big. Falls back to a colored tile with the issue number.
+  function coverThumb(x) {
+    const art = coverOf(x);
+    const b = el("button", "cthumb"); b.type = "button";
+    const base = hue(x.series);
+    b.style.background = "linear-gradient(135deg, " + base + ", #15171c)";
+    const fallback = el("span", null, x.issue ? "#" + x.issue : (x.format === "omnibus" ? "OMNI" : "TPB"));
+    b.append(fallback);
+    if (!art) { b.disabled = true; b.setAttribute("aria-label", label(x) + ": no cover image"); return b; }
+    const im = el("img"); im.src = art; im.alt = ""; im.loading = "lazy"; im.decoding = "async"; im.referrerPolicy = "no-referrer";
+    im.addEventListener("error", () => { im.remove(); b.disabled = true; });
+    b.append(im);
+    b.setAttribute("aria-label", "Show the cover of " + label(x));
+    b.addEventListener("click", () => showCover(x, art));
+    return b;
+  }
+  function showCover(x, art) {
+    let d = $("coverView");
+    if (!d) {
+      d = el("dialog", "coverview"); d.id = "coverView";
+      d.addEventListener("click", () => d.close());
+      document.body.append(d);
+    }
+    d.replaceChildren();
+    const im = el("img"); im.src = art.replace("/scale_medium/", "/scale_large/"); im.alt = label(x) + " cover"; im.referrerPolicy = "no-referrer";
+    im.addEventListener("error", () => { if (im.src !== art) im.src = art; }, { once: true });
+    const cap = el("div", "cap", label(x));
+    const close = el("button", "btn", "Close"); close.type = "button";
+    d.append(im, cap, close);
+    if (d.showModal) d.showModal(); else d.setAttribute("open", "");
+  }
+
   function renderCollection() {
     const root = $("collectionView");
     root.replaceChildren();
@@ -1087,6 +1136,9 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
     function itemRow(x) {
       const k = keyOf(x);
       const it = el("div", "citem");
+      it.append(coverThumb(x));
+      const main = el("div", "cmain");
+      it.append(main);
       const line = el("div", "line");
       line.append(el("b", null, (x.issue ? "#" + x.issue : (x.format === "omnibus" ? "Omnibus" : "Collected edition")) + (x.year ? " (" + x.year + ")" : "")));
       if (x.key) line.append(el("span", "badge key", "Key"));
@@ -1096,8 +1148,8 @@ body.in-coll #searchForm, body.in-coll #quick, body.in-coll #keybar, body.in-col
       ed.addEventListener("click", () => { collState.edit = collState.edit === k ? null : k; drawList(); });
       const val = el("a", "linkbtn", "Check value ↗"); val.href = STORES.ebaySold.url(queryFor(x)); val.target = "_blank"; val.rel = "noopener";
       line.append(ed, val);
-      it.append(line);
-      if (x.notes && collState.edit !== k) it.append(el("div", "tip", x.notes));
+      main.append(line);
+      if (x.notes && collState.edit !== k) main.append(el("div", "tip", x.notes));
       if (collState.edit === k) {
         const e = el("div", "editor");
         const gl = el("label", null, "Condition"); const gs = el("select");
